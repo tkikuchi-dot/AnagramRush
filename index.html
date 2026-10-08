@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#03070b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>アナグラムラッシュ</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='6' width='52' height='52' fill='%2303070b' stroke='%233ef0ff' stroke-width='3'/%3E%3Ctext x='32' y='42' text-anchor='middle' font-size='28' fill='%233ef0ff' font-family='sans-serif'%3E%E3%81%82%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+JP:wght@500;700&family=Oxanium:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #d7f7ff;
+    --paper: #07131c;
+    --paper-2: #0b1c28;
+    --bg: #03070b;
+    --red: #ff2d8a;
+    --gold: #3ef0ff;
+    --green: #5dffc2;
+    --amber: #ffc14a;
+    --muted: #7f9eab;
+    --line: rgba(62, 240, 255, 0.55);
+    --app-h: 100dvh;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  body { overscroll-behavior: none; }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(rgba(62, 240, 255, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(62, 240, 255, 0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+    mask-image: radial-gradient(circle at 50% 20%, #000 0%, transparent 78%);
+  }
+  button, input, textarea { font: inherit; touch-action: manipulation; }
+  button {
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: rgba(7, 19, 28, 0.92);
+    color: var(--ink);
+    border-radius: 2px;
+    box-shadow: 0 0 14px rgba(62, 240, 255, 0.08);
+  }
+  button:active { box-shadow: 0 0 18px rgba(62, 240, 255, 0.45); }
+  button:disabled { opacity: 0.4; cursor: default; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+  .num { font-family: "Oxanium", "IBM Plex Sans JP", sans-serif; font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+  [hidden] { display: none !important; }
+  #app { position: relative; z-index: 1; height: var(--app-h); overflow: hidden; }
+  .screen { height: 100%; overflow: auto; padding: calc(18px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom)); }
+  .title-wrap, .sheet { max-width: 720px; margin: 0 auto; }
+  .eyebrow {
+    margin: 0;
+    letter-spacing: 0.28em;
+    font-size: 12px;
+    font-weight: 900;
+    color: var(--gold);
+  }
+  .title-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .help-btn {
+    background: transparent;
+    color: var(--gold);
+    border: 1px solid var(--line);
+    box-shadow: none;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+  }
+  h1 {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 8px 0;
+    font-size: clamp(28px, 8.2vw, 48px);
+    line-height: 1;
+    color: var(--ink);
+    text-shadow: 0 0 18px rgba(62, 240, 255, 0.35);
+  }
+  .lead { margin: 0 0 18px; color: var(--muted); font-weight: 700; }
+  .modes { display: grid; gap: 12px; }
+  .mode {
+    display: grid;
+    gap: 2px;
+    text-align: left;
+    padding: 16px;
+    box-shadow: inset 0 0 0 1px rgba(62, 240, 255, 0.12);
+  }
+  .mode .kicker { color: var(--gold); font-weight: 700; font-size: 12px; letter-spacing: 0.16em; }
+  .mode .name { font-size: 28px; font-weight: 700; line-height: 1.2; }
+  .mode .desc, .mode .best { color: var(--muted); font-size: 14px; }
+  .mode-life { border-color: rgba(255, 45, 138, 0.75); box-shadow: inset 3px 0 0 var(--red); }
+  .genre-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+  .genre {
+    background: transparent;
+    color: var(--ink);
+    border-color: var(--line);
+    box-shadow: none;
+    padding: 8px 14px;
+    border-radius: 2px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+  .genre.on { background: var(--gold); color: #041018; border-color: var(--gold); box-shadow: 0 0 16px rgba(62, 240, 255, 0.4); }
+  .word-line, .note { color: var(--muted); font-size: 14px; font-weight: 700; }
+  .rank-box { margin-top: 14px; }
+  .rank-list {
+    display: grid;
+    gap: 4px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+  .rank-list li { display: flex; align-items: baseline; gap: 8px; font-weight: 900; }
+  .rank-list .place { color: var(--gold); width: 2.4em; flex: none; }
+  .rank-list .who {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 700;
+  }
+  .rank-list .points { font-variant-numeric: tabular-nums; flex: none; }
+  .rank-name {
+    display: grid;
+    gap: 8px;
+    width: min(440px, 100%);
+    margin-top: 12px;
+  }
+  .rank-name p { margin: 0; font-weight: 900; }
+  .rank-name input {
+    width: 100%;
+    font-size: 16px;
+    padding: 12px;
+    border-radius: 2px;
+    border: 1px solid var(--line);
+    background: #07131c;
+    color: var(--ink);
+  }
+  #start-rank { border-color: var(--gold); box-shadow: 0 0 18px rgba(62, 240, 255, 0.16); }
+  .volume-box { display: grid; gap: 6px; margin: 0 0 14px; }
+  .volume {
+    display: grid;
+    grid-template-columns: 2.6em 1fr 2.6em;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 900;
+  }
+  .volume input { width: 100%; height: 28px; accent-color: var(--gold); }
+  .volume .num { text-align: right; color: var(--gold); }
+  .title-actions, .row-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .ghost {
+    background: transparent;
+    color: var(--ink);
+    border-color: var(--line);
+    box-shadow: none;
+    padding: 10px 14px;
+  }
+  h2 { font-size: 18px; margin: 22px 0 8px; }
+  .help ul, .sheet ul { padding-left: 1.2em; }
+  .help li, .sheet li { margin: 6px 0; }
+  textarea {
+    width: 100%;
+    min-height: 46vh;
+    font-size: 16px;
+    line-height: 1.55;
+    padding: 12px;
+    border-radius: 2px;
+    border: 1px solid var(--line);
+    background: #07131c;
+    color: var(--ink);
+    resize: vertical;
+  }
+  .play { position: relative; overflow: hidden; padding: 0; }
+  .play-frame {
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+  .hud {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "quit score side bird" "help sub mute bird";
+    align-items: center;
+    column-gap: 8px;
+    padding: calc(8px + env(safe-area-inset-top)) 8px 4px 12px;
+  }
+  #mascot {
+    grid-area: bird;
+    width: 104px;
+    height: 78px;
+    object-fit: contain;
+    justify-self: end;
+    align-self: center;
+    pointer-events: none;
+  }
+  #mascot.hop { animation: mascot-hop 0.55s ease; }
+  @keyframes mascot-hop {
+    0% { transform: translateY(8px) scale(0.72); }
+    55% { transform: translateY(-3px) scale(1.06); }
+    100% { transform: none; }
+  }
+  #quit { grid-area: quit; }
+  #play-help { grid-area: help; color: var(--gold); }
+  #mute-play { grid-area: mute; justify-self: end; }
+  #hud-score { grid-area: score; }
+  #hud-sub { grid-area: sub; }
+  #hud-side { grid-area: side; justify-self: end; }
+  .textbtn {
+    background: transparent;
+    color: var(--muted);
+    border: 0;
+    box-shadow: none;
+    padding: 4px 0;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .score {
+    margin: 0;
+    text-align: center;
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--gold);
+  }
+  .hud-sub { margin: 0; text-align: center; color: var(--muted); font-size: 12px; font-weight: 700; }
+  .clock { margin: 0; font-size: 28px; font-weight: 800; min-width: 4.2ch; text-align: right; }
+  .hearts { margin: 0; letter-spacing: 2px; font-size: 22px; }
+  .hearts span { color: rgba(62, 240, 255, 0.22); }
+  .hearts span.on { color: var(--red); text-shadow: 0 0 8px rgba(255, 45, 138, 0.8); }
+  .stage { position: relative; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 8px; }
+  .reveal, .result-answer {
+    margin: 0;
+    text-align: center;
+    color: var(--gold);
+    font-weight: 900;
+    font-size: 22px;
+    letter-spacing: 0.08em;
+    line-height: 1.3;
+    text-shadow: 0 0 16px rgba(62, 240, 255, 0.45);
+  }
+  .banner {
+    margin: 0;
+    text-align: center;
+    background: rgba(255, 45, 138, 0.16);
+    color: #ffd0e4;
+    border: 1px solid var(--red);
+    font-weight: 700;
+    border-radius: 2px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  .milestone {
+    position: absolute;
+    z-index: 5;
+    left: 12px;
+    right: 12px;
+    top: 34%;
+    margin: 0;
+    text-align: center;
+    pointer-events: none;
+    color: var(--gold);
+    font-weight: 900;
+    font-size: 40px;
+    letter-spacing: 0.06em;
+    text-shadow: 0 0 18px rgba(62, 240, 255, 0.85);
+  }
+  .milestone.show { animation: milestone-in 2.4s ease forwards; }
+  @keyframes milestone-in {
+    0% { opacity: 0; transform: scale(0.86); }
+    14% { opacity: 1; transform: scale(1); }
+    72% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  .board { flex: 1; min-height: 0; }
+  .board.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 8px;
+  }
+  .board.pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+    gap: 8px;
+  }
+  .board.pyramid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 8px;
+  }
+  .board.pair .card[data-slot="0"] { grid-column: 1; grid-row: 1; }
+  .board.pair .card[data-slot="1"] { grid-column: 2; grid-row: 1; }
+  .board.grid .card[data-slot="0"] { grid-column: 1; grid-row: 1; }
+  .board.grid .card[data-slot="1"] { grid-column: 2; grid-row: 1; }
+  .board.grid .card[data-slot="2"] { grid-column: 1; grid-row: 2; }
+  .board.grid .card[data-slot="3"] { grid-column: 2; grid-row: 2; }
+  .board.pyramid .card[data-slot="0"] { grid-column: 2 / 4; grid-row: 1; }
+  .board.pyramid .card[data-slot="1"] { grid-column: 1 / 3; grid-row: 2; }
+  .board.pyramid .card[data-slot="2"] { grid-column: 3 / 5; grid-row: 2; }
+  .dice-scene {
+    --die: 148px;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 48px;
+    perspective: 900px;
+  }
+  .dice-scene.count-2 { --die: 118px; gap: 36px; }
+  .dice-scene.count-2 .dice-row { gap: 40px; }
+  .dice-scene.count-3, .dice-scene.count-4 { --die: 92px; gap: 28px; }
+  .dice-scene.count-3 .dice-row, .dice-scene.count-4 .dice-row { gap: 32px; }
+  .dice-scene.count-5, .dice-scene.count-6, .dice-scene.count-7, .dice-scene.count-8 { --die: 80px; gap: 22px; }
+  .dice-scene.count-5 .dice-row, .dice-scene.count-6 .dice-row, .dice-scene.count-7 .dice-row, .dice-scene.count-8 .dice-row { gap: 26px; }
+  .dice-scene .genre-tag { flex: none; margin: 0; }
+  .dice-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    max-width: 100%;
+  }
+  .die-slot { width: var(--die); height: var(--die); flex: none; }
+  .dice {
+    width: var(--die);
+    height: var(--die);
+    position: relative;
+    transform-style: preserve-3d;
+    animation-duration: 15s;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    animation-fill-mode: forwards;
+  }
+  .dice.spin-a { animation-name: dice-spin-a; }
+  .dice.spin-b { animation-name: dice-spin-b; }
+  .dice.spin-c { animation-name: dice-spin-c; }
+  .dice.spin-d { animation-name: dice-spin-d; }
+  .dice span {
+    position: absolute;
+    width: var(--die);
+    height: var(--die);
+    display: grid;
+    place-items: center;
+    font-size: calc(var(--die) * 0.46);
+    font-weight: 900;
+    line-height: 1;
+    color: #f3fdff;
+    background: rgba(6, 18, 28, 0.94);
+    border: 2px solid rgba(62, 240, 255, 0.9);
+    box-shadow: inset 0 0 28px rgba(62, 240, 255, 0.18), 0 0 16px rgba(62, 240, 255, 0.12);
+    text-shadow: 0 0 12px rgba(62, 240, 255, 0.55);
+    backface-visibility: hidden;
+  }
+  .dice span.blank { color: transparent; text-shadow: none; }
+  .dice span:nth-child(1) { transform: translateZ(calc(var(--die) / 2)); }
+  .dice span:nth-child(2) { transform: rotateY(180deg) translateZ(calc(var(--die) / 2)); }
+  .dice span:nth-child(3) { transform: rotateY(90deg) translateZ(calc(var(--die) / 2)); }
+  .dice span:nth-child(4) { transform: rotateY(-90deg) translateZ(calc(var(--die) / 2)); }
+  .dice span:nth-child(5) { transform: rotateX(90deg) translateZ(calc(var(--die) / 2)); }
+  .dice span:nth-child(6) { transform: rotateX(-90deg) translateZ(calc(var(--die) / 2)); }
+  @keyframes dice-spin-a {
+    0%, 12% { transform: rotateX(-14deg) rotateY(18deg); }
+    16%, 28% { transform: rotateX(-14deg) rotateY(-72deg); }
+    32%, 44% { transform: rotateX(-14deg) rotateY(-162deg); }
+    48%, 60% { transform: rotateX(-14deg) rotateY(-252deg); }
+    64%, 76% { transform: rotateX(-76deg) rotateY(-342deg); }
+    80%, 90% { transform: rotateX(76deg) rotateY(-342deg); }
+    100% { transform: rotateX(-14deg) rotateY(-342deg); }
+  }
+  @keyframes dice-spin-b {
+    0%, 12% { transform: rotateX(-14deg) rotateY(18deg); }
+    16%, 28% { transform: rotateX(-14deg) rotateY(108deg); }
+    32%, 44% { transform: rotateX(-14deg) rotateY(198deg); }
+    48%, 60% { transform: rotateX(-14deg) rotateY(288deg); }
+    64%, 76% { transform: rotateX(-76deg) rotateY(378deg); }
+    80%, 90% { transform: rotateX(76deg) rotateY(378deg); }
+    100% { transform: rotateX(-14deg) rotateY(378deg); }
+  }
+  @keyframes dice-spin-c {
+    0%, 12% { transform: rotateX(-76deg) rotateY(18deg); }
+    16%, 28% { transform: rotateX(76deg) rotateY(18deg); }
+    32%, 44% { transform: rotateX(-14deg) rotateY(18deg); }
+    48%, 60% { transform: rotateX(-14deg) rotateY(-72deg); }
+    64%, 76% { transform: rotateX(-14deg) rotateY(-162deg); }
+    80%, 90% { transform: rotateX(-14deg) rotateY(-252deg); }
+    100% { transform: rotateX(-76deg) rotateY(-342deg); }
+  }
+  @keyframes dice-spin-d {
+    0%, 12% { transform: rotateX(76deg) rotateY(18deg); }
+    16%, 28% { transform: rotateX(-14deg) rotateY(-72deg); }
+    32%, 44% { transform: rotateX(-14deg) rotateY(-162deg); }
+    48%, 60% { transform: rotateX(-14deg) rotateY(-252deg); }
+    64%, 76% { transform: rotateX(-14deg) rotateY(-342deg); }
+    80%, 90% { transform: rotateX(-76deg) rotateY(-342deg); }
+    100% { transform: rotateX(76deg) rotateY(-342deg); }
+  }
+  .is-paused .dice { animation-play-state: paused; }
+  .board.single { display: flex; }
+  .board.single .card { width: 100%; }
+  .slot { border: 1px dashed rgba(62, 240, 255, 0.22); border-radius: 2px; }
+  .card {
+    background: rgba(6, 16, 24, 0.9);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    box-shadow: inset 0 0 24px rgba(62, 240, 255, 0.05);
+    container-type: size;
+  }
+  .card.boss { border-color: var(--red); box-shadow: 0 0 18px rgba(255, 45, 138, 0.35), inset 0 0 24px rgba(255, 45, 138, 0.08); }
+  .card.urgent { animation: pulse 0.55s ease-in-out infinite; }
+  .card header { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 900; }
+  .card .time { margin-left: auto; font-size: 16px; }
+  .badge {
+    background: transparent;
+    color: var(--red);
+    border: 1px solid var(--red);
+    border-radius: 2px;
+    padding: 1px 6px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+  .tiles {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-content: center;
+    align-items: center;
+    gap: 4px;
+  }
+  .tile {
+    display: grid;
+    place-items: center;
+    min-width: 1.2em;
+    height: 1.35em;
+    padding: 0 0.06em;
+    background: rgba(4, 14, 22, 0.95);
+    color: #f3fdff;
+    border: 1px solid rgba(62, 240, 255, 0.8);
+    border-radius: 2px;
+    box-shadow: 0 0 10px rgba(62, 240, 255, 0.16);
+    text-shadow: 0 0 8px rgba(62, 240, 255, 0.55);
+    font-weight: 900;
+    line-height: 1;
+    font-size: clamp(16px, 4.8vw, 34px);
+    animation: deal 0.22s both;
+  }
+  .board.grid .tile, .board.pair .tile, .board.pyramid .tile { font-size: clamp(14px, 3.5vw, 22px); }
+  .genre-tag {
+    flex: 0 0 100%;
+    margin: 8px 0 0;
+    text-align: center;
+    color: var(--gold);
+    font-weight: 900;
+    font-size: 20px;
+    letter-spacing: 0.14em;
+    line-height: 1.2;
+  }
+  .board.grid .genre-tag, .board.pair .genre-tag, .board.pyramid .genre-tag { margin-top: 4px; font-size: 16px; letter-spacing: 0.08em; }
+  .card.span .genre-tag { font-size: 26px; }
+  .card.span .tile { font-size: clamp(28px, 9vw, 52px); }
+  .card.span .lengths { gap: 8px; }
+  .card.span .lengths li { font-size: 20px; padding: 6px 12px; }
+  .card.span .lengths b {
+    font-size: 28px;
+    min-width: 1.45em;
+    height: 1.45em;
+    padding: 0;
+  }
+  .card.tight .tile, .card.span.tight .tile { font-size: clamp(14px, 4vw, 24px); }
+  .card.tighter .tile, .card.span.tighter .tile { font-size: 13px; min-width: 1.05em; }
+  .boss-note {
+    margin: 6px 0 0;
+    text-align: center;
+    color: #ffd0e4;
+    font-weight: 900;
+    font-size: 15px;
+    letter-spacing: 0.04em;
+    line-height: 1.3;
+  }
+  .board.grid .boss-note, .board.pair .boss-note, .board.pyramid .boss-note { font-size: 12px; margin-top: 2px; }
+  .lengths, .first-letter { margin: 4px 0 0; }
+  .lengths {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+    list-style: none;
+    padding: 0;
+  }
+  .lengths li {
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 1px 7px;
+    font-size: 12px;
+    font-weight: 900;
+  }
+  .lengths .done { background: rgba(93, 255, 194, 0.16); color: var(--green); border-color: var(--green); }
+  .lengths b, .first-letter b { color: #041018; background: var(--gold); }
+  .lengths b {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.2em;
+    margin-right: 3px;
+    border-radius: 2px;
+    font-size: 12px;
+  }
+  .first-letter {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+    font-weight: 900;
+    font-size: 13px;
+  }
+  .first-letter b {
+    display: inline-grid;
+    place-items: center;
+    width: 1.5em;
+    height: 1.5em;
+    border-radius: 2px;
+    font-size: 22px;
+  }
+  .bar { height: 4px; margin-top: 6px; background: rgba(62, 240, 255, 0.12); border-radius: 0; overflow: hidden; }
+  .bar > span { display: block; height: 100%; width: 100%; transform-origin: left center; background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+  #dock {
+    display: flex;
+    gap: 8px;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    background: rgba(3, 7, 11, 0.94);
+    border-top: 1px solid rgba(62, 240, 255, 0.25);
+  }
+  #answer {
+    flex: 1;
+    min-width: 0;
+    height: 48px;
+    font-size: 16px;
+    border-radius: 2px;
+    border: 1px solid var(--line);
+    background: #07131c;
+    color: var(--ink);
+    padding: 0 12px;
+  }
+  #answer::placeholder { color: #5f7c88; }
+  #hammer {
+    width: 48px;
+    height: 48px;
+    flex: none;
+    border-radius: 2px;
+    background: transparent;
+    border-color: var(--gold);
+    color: var(--gold);
+    font-size: 22px;
+    line-height: 1;
+    touch-action: none;
+    user-select: none;
+  }
+  #hammer.dragging {
+    position: fixed;
+    z-index: 20;
+    margin: 0;
+    width: 64px;
+    height: 64px;
+    font-size: 30px;
+  }
+  #send, #pass { height: 48px; padding: 0 14px; flex: none; font-weight: 900; }
+  #pass { min-width: 72px; }
+  #send { background: var(--gold); color: #041018; border-color: var(--gold); box-shadow: 0 0 16px rgba(62, 240, 255, 0.35); }
+  #pass {
+    background: transparent;
+    color: var(--ink);
+    border-color: var(--line);
+    box-shadow: none;
+    border-radius: 2px;
+  }
+  .countdown, .flash {
+    position: absolute;
+    inset: 0;
+  }
+  .countdown {
+    z-index: 7;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    background: rgba(3, 7, 11, 0.92);
+    text-align: center;
+  }
+  .countdown p { margin: 0; color: var(--muted); font-weight: 900; }
+  .countdown b {
+    font-family: "Oxanium", "IBM Plex Sans JP", sans-serif;
+    text-shadow: 0 0 24px rgba(62, 240, 255, 0.7);
+    font-size: 104px;
+    line-height: 0.9;
+    color: var(--gold);
+  }
+  .flash { z-index: 4; pointer-events: none; }
+  .flash.ok {
+    background: linear-gradient(rgba(62, 240, 255, 0.4), transparent 28%);
+    animation: fade 0.28s linear forwards;
+  }
+  .flash.bad {
+    background: linear-gradient(rgba(255, 45, 138, 0.5), transparent 28%);
+    animation: fade 0.35s linear forwards;
+  }
+  .quitbar {
+    position: absolute;
+    z-index: 6;
+    left: 10px;
+    right: 10px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 12px;
+  }
+  .quitbar p { flex: 1 0 100%; margin: 0; font-weight: 900; }
+  .score { position: relative; }
+  .pop {
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    color: var(--gold);
+    white-space: nowrap;
+    pointer-events: none;
+    animation: float 650ms ease-out forwards;
+  }
+  .toast {
+    position: fixed;
+    z-index: 30;
+    left: 50%;
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    background: rgba(7, 19, 28, 0.94);
+    color: var(--ink);
+    border: 1px solid var(--gold);
+    border-radius: 2px;
+    box-shadow: 0 0 16px rgba(62, 240, 255, 0.25);
+    padding: 10px 14px;
+    font-weight: 900;
+  }
+  .result {
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    text-align: center;
+    gap: 6px;
+  }
+  .result-score {
+    margin: 0;
+    font-size: clamp(72px, 22vw, 128px);
+    font-weight: 800;
+    line-height: 0.9;
+    color: var(--gold);
+    text-shadow: 0 0 28px rgba(62, 240, 255, 0.45);
+  }
+  .result-unit { margin: 0; font-weight: 900; }
+  .record { margin: 0; color: var(--gold); font-weight: 900; }
+  .stats { list-style: none; padding: 0; margin: 8px 0 12px; color: var(--muted); font-weight: 700; }
+  .stats li { margin: 4px 0; }
+  .result-actions { display: flex; gap: 8px; }
+  @media (min-width: 720px) {
+    .modes { grid-template-columns: 1fr 1fr; }
+  }
+  .result .rank-box { width: min(440px, 100%); text-align: left; }
+  @media (max-height: 560px) {
+    .score { font-size: 26px; }
+    h1 { font-size: 32px; }
+    .card { padding: 6px; }
+    .countdown b { font-size: 72px; }
+  }
+  @keyframes deal {
+    from { transform: translateY(-4px); }
+    to { transform: none; }
+  }
+  @keyframes float {
+    to { transform: translate(-50%, -8px); opacity: 0; }
+  }
+  @keyframes fade { to { opacity: 0; } }
+  @keyframes pulse {
+    50% { box-shadow: 0 0 18px rgba(255, 45, 138, 0.7); }
+  }
+  @keyframes shake {
+    25% { transform: translateX(-4px); }
+    50% { transform: translateX(4px); }
+    75% { transform: translateX(-2px); }
+  }
+  .shake { animation: shake 0.28s linear; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+  @container (max-height: 150px) {
+    .tile { font-size: 14px; }
+    .first-letter b { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="screen-title" class="screen title">
+    <div class="title-wrap">
+      <div class="title-bar">
+        <p class="eyebrow">SCORE ATTACK</p>
+        <button type="button" id="open-help" class="help-btn">遊び方</button>
+      </div>
+      <h1>アナグラムラッシュ</h1>
+      <p class="lead">ばらけた文字を、もとの単語に戻せ。</p>
+      <div class="genre-row" id="level-row">
+        <button type="button" class="genre" data-level="easy" aria-pressed="false">イージー</button>
+        <button type="button" class="genre on" data-level="normal" aria-pressed="true">ノーマル</button>
+        <button type="button" class="genre" data-level="hard" aria-pressed="false">ハード</button>
+      </div>
+      <div class="genre-row" id="genre-row">
+        <button type="button" class="genre on" data-genre="mammal" aria-pressed="true">哺乳類</button>
+        <button type="button" class="genre on" data-genre="fish" aria-pressed="true">魚類</button>
+        <button type="button" class="genre on" data-genre="food" aria-pressed="true">料理</button>
+        <button type="button" class="genre" data-genre="pokemon" aria-pressed="false">ポケモン</button>
+      </div>
+      <p class="word-line" id="word-line">単語 —</p>
+      <p class="note" id="life-note" hidden>単語が4語未満だと、大きなボスは短くなります。</p>
+      <div class="volume-box">
+        <label class="volume">BGM
+          <input id="bgm-volume" type="range" min="0" max="100" value="60" aria-label="BGMの音量">
+          <span id="bgm-volume-label" class="num">60</span>
+        </label>
+        <label class="volume">SE
+          <input id="se-volume" type="range" min="0" max="100" value="80" aria-label="SEの音量">
+          <span id="se-volume-label" class="num">80</span>
+        </label>
+      </div>
+      <div class="modes">
+        <button type="button" id="start-simple" class="mode">
+          <span class="kicker">60秒</span>
+          <span class="name">シンプル</span>
+          <span class="desc">正解した数を競う</span>
+          <span class="best num" id="best-simple">BEST —</span>
+        </button>
+        <button type="button" id="start-dice" class="mode">
+          <span class="kicker">60秒・3〜9文字</span>
+          <span class="name">シングルダイス</span>
+          <span class="desc">回る立方体で、正解した数を競う</span>
+          <span class="best num" id="best-dice">BEST —</span>
+        </button>
+        <button type="button" id="start-life" class="mode mode-life">
+          <span class="kicker">♥ × 3</span>
+          <span class="name">ライフ3</span>
+          <span class="desc">ライフが尽きるまでのスコア</span>
+          <span class="best num" id="best-life">BEST —</span>
+        </button>
+        <button type="button" id="start-rank" class="mode">
+          <span class="kicker">哺乳類・魚類・料理</span>
+          <span class="name">ランキング</span>
+          <span class="desc">1語100点。連続しても増えない</span>
+          <span class="best num" id="best-rank">TOP —</span>
+        </button>
+      </div>
+      <div class="rank-box">
+        <p class="eyebrow">RANK 10</p>
+        <ol id="title-rank" class="rank-list"></ol>
+        <p class="note" id="rank-note"></p>
+      </div>
+      <div class="title-actions">
+        <button type="button" id="open-words" class="ghost">単語を登録</button>
+        <button type="button" id="toggle-sound" class="ghost">音オン</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-help" class="screen help" hidden>
+    <div class="sheet">
+      <button type="button" id="help-back" class="ghost">戻る</button>
+      <h2>共通</h2>
+      <ul>
+        <li>画面の文字を並べ替えて、もとの単語を下の欄に入れる。ひらがなでもカタカナでも当たる。</li>
+        <li>時間切れのときは、その問題の答えが出る。</li>
+        <li>並びは、必ずもとの順番からずらしてある。</li>
+        <li>タイトルで、BGMとSEの音量を別々に変えられる。</li>
+        <li>問題の下に、その単語のジャンルが出る。</li>
+        <li>同じ文字で別の単語が辞書にあるときは、最初から先頭の1文字が見える。</li>
+        <li>ボスがほかの問題に混ざるときは、ふつうの問題の方が出やすい。ボスは2語がいちばん多く、3語は少なく、4語はさらに少ない。100問に近づくと、ふつうの問題と2語・3語・4語のボスが同じくらい出る。</li>
+      </ul>
+      <h2>パスハンマー</h2>
+      <ul>
+        <li>下の欄の左にあるハンマーを、消したい問題までドラッグする。</li>
+        <li>1プレイに1回だけ使える。</li>
+        <li>その問題は消える。点数は入らず、ライフも減らない。連続はリセットされる。</li>
+      </ul>
+      <h2>シンプル</h2>
+      <ul>
+        <li>60秒で、正解した数を競う。</li>
+        <li>何も入れずに決定するとパス。1回だけ。ボタンでも同じ。</li>
+        <li>ふつうの問題は15秒。3分の1で先頭の1文字、3分の2で2文字目が出る。ゼロでその問題は不正解。</li>
+        <li>ボスは、ふつうの問題に混ざって出る。</li>
+        <li>30問に到達すると、BGMが変わる。</li>
+      </ul>
+      <h2>シングルダイス</h2>
+      <ul>
+        <li>ルールはシンプルと同じ。60秒、パスは1回。</li>
+        <li>ふつうの問題は3〜9文字。文字は立方体の6面に割り振る。余った面は空欄。6面を超えるときはサイコロを増やす。</li>
+        <li>その問題のあいだに、6面が順に正面を向く。回り終わると、もう一周する。回り方は4種類。</li>
+        <li>20問目は2語のボス、40問目は3語、60問目は4語。そのあとも20問ごとに、2語、3語、4語の順。</li>
+        <li>ボスもサイコロ。面が足りないときはサイコロを増やす。</li>
+        <li>30問に到達すると、BGMが変わる。</li>
+      </ul>
+      <h2>ライフ3</h2>
+      <ul>
+        <li>ライフは3つ。1問は15秒。時間切れでライフが1つ減る。</li>
+        <li>最初の10問は1問ずつ出る。</li>
+        <li>10問が終わると同時に2問まで。20問が終わると3問まで。30問が終わると4問まで。</li>
+        <li>2問は横に2つ。3問は上に1つ、下に2つ。4問は2×2。</li>
+        <li>答えは下の欄ひとつ。出ている問題のどれかに当たれば消える。</li>
+        <li>10問目と20問目はボス。2語が混ざった問題が、画面に1問だけ出る（25秒）。</li>
+        <li>30問目のボスは3語（35秒）。40問目のボスは4語（45秒）。</li>
+        <li>ボスは単語ごとの文字数が見える。1語答えると、その文字が消える。</li>
+        <li>50問を超えると、ボスはほかの問題に混ざって出る。</li>
+        <li>50問に到達すると、BGMが変わる。</li>
+        <li>制限時間の3分の1で先頭の1文字、3分の2で2文字目が出る。</li>
+        <li>序盤は3〜5文字が多い。6文字以上はときどき。80問あたりで、どの長さも同じくらい出る。</li>
+        <li>ライフが0になったときのスコアを競う。速いほど、連続するほど高い。</li>
+        <li>エンターで間違えると、50問ごとに1回、ライフが1つ戻る。3つより増えない。</li>
+      </ul>
+      <h2>遊ぶ前</h2>
+      <ul>
+        <li>イージーは3〜6文字、ノーマルは3〜8文字、ハードは4〜9文字だけ出る。</li>
+        <li>ジャンルは哺乳類、魚類、料理、ポケモンから、いくつでも選べる。</li>
+        <li>ランキングに出るのは、哺乳類、魚類、料理。</li>
+        <li>別解がある問題は、最初から先頭の1文字が見える。</li>
+        <li>10問正解するごとに、右上に鳥が出る。50問目からはサングラスの鳥になる。</li>
+        <li>「単語を登録」は、シンプルとライフ3の出題に足される。</li>
+      </ul>
+      <h2>ランキング</h2>
+      <ul>
+        <li>ライフ3と同じ進み方。ジャンルは哺乳類、魚類、料理。文字数は3〜9、ヒントはオフ。</li>
+        <li>遊び方や中断の確認を開いても、画面を離れても、タイマーは止まらない。</li>
+        <li>50問に到達すると、BGMが変わる。</li>
+        <li>序盤は3〜5文字が多い。6文字以上はときどき。80問あたりで、どの長さも同じくらい出る。</li>
+        <li>1語100点。速さでも連続でも増えない。</li>
+        <li>エンターで間違えると、50問ごとに1回、ライフが1つ戻る。3つより増えない。</li>
+        <li>上位10件に入ると、名前を登録できる。空欄のままなら「とくめいきぼう君」。</li>
+        <li>ランキングは、遊んだ人のスコアが同じ場所に集まる。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="screen-words" class="screen" hidden>
+    <div class="sheet">
+      <button type="button" id="words-back" class="ghost">戻る</button>
+      <h2>単語を登録</h2>
+      <p class="lead">1行に1語。シンプルとライフ3では、選んだジャンルに足して出る。</p>
+      <textarea id="word-text" spellcheck="false" autocapitalize="off" placeholder="りんご&#10;みかん&#10;ぶどう"></textarea>
+      <p class="word-line" id="word-stat"></p>
+      <div class="row-actions">
+        <button type="button" id="save-words">登録する</button>
+        <button type="button" id="sample-words" class="ghost">サンプルを入れる</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-play" class="screen play" hidden>
+    <div class="play-frame">
+      <header class="hud">
+        <button type="button" id="quit" class="textbtn">やめる</button>
+        <button type="button" id="play-help" class="textbtn">遊び方</button>
+        <p id="hud-score" class="score num"><span id="hud-score-value">0</span></p>
+        <div id="hud-side">
+          <p id="clock" class="clock num" hidden>60.0</p>
+          <p id="hearts" class="hearts" hidden><span>♥</span><span>♥</span><span>♥</span></p>
+        </div>
+        <button type="button" id="mute-play" class="textbtn">音</button>
+        <p id="hud-sub" class="hud-sub"></p>
+        <img id="mascot" alt="" hidden>
+      </header>
+      <div class="stage">
+        <p id="reveal" class="reveal" hidden></p>
+        <p id="banner" class="banner" hidden>BOSSが来る。いまの問題を片付けて。</p>
+        <div id="board" class="board"></div>
+      </div>
+      <form id="dock" autocomplete="off">
+        <button type="button" id="hammer" aria-label="パスハンマー" hidden>🔨</button>
+        <input id="answer" name="anagram-answer" lang="ja" inputmode="text" enterkeyhint="send" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" maxlength="32" aria-label="解答" placeholder="ひらがな・カタカナ">
+        <button type="button" id="pass" hidden>パス</button>
+        <button type="submit" id="send">解答</button>
+      </form>
+    </div>
+    <div id="countdown" class="countdown" hidden>
+      <div>
+        <p id="count-label">シンプル</p>
+        <b id="count-num">3</b>
+      </div>
+    </div>
+    <div id="quitbar" class="quitbar" hidden>
+      <p>このプレイをやめますか？記録は残りません。</p>
+      <button type="button" id="quit-no">続ける</button>
+      <button type="button" id="quit-yes">やめる</button>
+    </div>
+    <div id="flash" class="flash"></div>
+    <p id="milestone" class="milestone" hidden></p>
+  </section>
+
+  <section id="screen-result" class="screen result" hidden>
+    <p class="eyebrow" id="result-mode">シンプル</p>
+    <p class="result-score num" id="result-score">0</p>
+    <p class="result-unit" id="result-unit">正解</p>
+    <p class="result-answer" id="result-answer" hidden></p>
+    <p class="record" id="result-record"></p>
+    <ul class="stats" id="result-stats"></ul>
+    <div id="result-rank" class="rank-box" hidden>
+      <form id="rank-name-form" class="rank-name" hidden>
+        <p>ランキングに入りました。名前をどうぞ。</p>
+        <input id="rank-name" name="rank-name" lang="ja" maxlength="12" autocomplete="nickname" enterkeyhint="done" placeholder="とくめいきぼう君" aria-label="ランキングの名前">
+        <button type="submit">名前を登録</button>
+      </form>
+      <p class="eyebrow">RANK 10</p>
+      <ol id="result-rank-list" class="rank-list"></ol>
+      <p class="note" id="result-rank-note"></p>
+    </div>
+    <div class="result-actions">
+      <button type="button" id="retry">もう一度</button>
+      <button type="button" id="to-title" class="ghost">タイトル</button>
+    </div>
+  </section>
+</div>
+<div id="toasts"></div>
+<script src="logic.js"></script>
+<script src="words.js"></script>
+<script src="genres.js"></script>
+<script src="pokemon.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
