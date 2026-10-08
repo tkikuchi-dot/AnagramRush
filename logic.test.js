@@ -115,9 +115,10 @@ for (let seed = 1; seed <= 40; seed += 1) {
   assertScrambled(state.active[0]);
 }
 
-// Simple: first letter at one third, second letter at two thirds, one pass, 60 second end
+// Simple: first letter at one third, second letter at two thirds, one pass, 120 second end
 {
   const state = simpleNormal(PLAIN, 8);
+  assert.strictEqual(state.simpleRemainMs, 120000);
   const first = state.active[0].parts[0].word;
   const part = state.active[0].parts[0];
   const limit = state.active[0].totalMs;
@@ -146,12 +147,12 @@ for (let seed = 1; seed <= 40; seed += 1) {
   assert.strictEqual(G.submit(state, second).ok, true);
   assert.strictEqual(state.score, 1);
   assert.strictEqual(state.correct, 1);
-  G.tick(state, 60000);
+  G.tick(state, 120000);
   assert.strictEqual(state.phase, "over");
   assert.strictEqual(state.simpleRemainMs, 0);
 }
 
-// Simple timeout fails that question and keeps the 60 second game going.
+// Simple timeout fails that question and keeps the 120 second game going.
 {
   const state = simpleNormal(["サクラ", "ウメ", "モモ", "キク"], 3);
   const first = state.active[0].parts[0].word;
@@ -437,27 +438,21 @@ for (let seed = 1; seed <= 40; seed += 1) {
   assert.strictEqual(state.active.length, 1);
 }
 
-// A mixed-in simple boss stays on the same board and scores one point per word.
+// Simple never rolls a boss. A mixed dice boss stays on the board.
 {
+  const simple = G.createGame(PLAIN, "simple", 1);
+  assert.strictEqual(spawnNumber(simple, 2).boss, false);
+  assert.strictEqual(spawnNumber(simple, 10).boss, false);
+  assert.strictEqual(spawnNumber(simple, 51).boss, false);
   let found = null;
-  for (let seed = 1; seed <= 40 && !found; seed += 1) {
-    const state = G.createGame(PLAIN, "simple", seed);
-    for (let step = 0; step < 8 && state.phase !== "over"; step += 1) {
-      if (state.active[0] && state.active[0].boss) {
-        found = state;
-        break;
-      }
-      for (const part of state.active[0].parts) G.submit(state, part.word);
-      G.tick(state, 16);
-    }
+  for (let seed = 1; seed <= 80 && !found; seed += 1) {
+    const state = G.createGame(PLAIN, "dice", seed);
+    const puzzle = spawnNumber(state, 51);
+    if (puzzle && puzzle.boss) found = state;
   }
-  assert.ok(found, "simple mix should spawn a boss");
+  assert.ok(found, "dice mix should spawn a boss");
   assert.strictEqual(found.phase, "playing");
   assert.strictEqual(found.active[0].exclusive, false);
-  const before = found.score;
-  const parts = found.active[0].parts.length;
-  for (const part of found.active[0].parts) G.submit(found, part.word);
-  assert.strictEqual(found.score, before + parts);
 }
 
 // Hint switch keeps both letters closed after two thirds of the clock.
@@ -562,7 +557,9 @@ for (let seed = 1; seed <= 40; seed += 1) {
   const state = fresh();
   const id = state.active[0].id;
   const lives = state.lives;
+  const answer = state.active[0].parts.map((part) => part.word);
   assert.strictEqual(G.hammer(state, id).ok, true);
+  assert.deepStrictEqual(state.events.filter((ev) => ev.type === "hammer")[0].words, answer);
   assert.ok(!state.active.some((puzzle) => puzzle.id === id));
   assert.strictEqual(state.lives, lives);
   assert.strictEqual(state.score, 0);
@@ -603,7 +600,7 @@ for (let seed = 1; seed <= 40; seed += 1) {
 
   const simple = G.createGame(["サクラ", "ウメ", "モモ"], "simple", 1);
   const last = simple.active[0].parts.map((part) => part.word);
-  G.tick(simple, 60000);
+  G.tick(simple, 120000);
   assert.strictEqual(simple.phase, "over");
   assert.deepStrictEqual(simple.lastAnswers, last);
 }
@@ -666,26 +663,21 @@ for (let seed = 1; seed <= 40; seed += 1) {
 
 {
   const words = ["サンドイッチ", "ハンバーガー", "カレーライス", "コロッケパン", "カレー", "サクラ", "ウメ", "モモ"];
-  let normals = 0;
-  for (let seed = 1; seed <= 24; seed += 1) {
-    const state = G.createGame(words, "dice", seed);
-    assert.strictEqual(state.mode, "dice");
-    assert.strictEqual(state.active[0].boss, false);
-    normals += 1;
-    const length = state.active[0].parts[0].chars.length;
-    assert.ok(length >= 3 && length <= 9, "seed " + seed + " len " + length);
-  }
-  assert.ok(normals >= 12, "normals " + normals);
   const state = G.createGame(words, "dice", 4);
-  assert.strictEqual(state.simpleRemainMs, 60000);
+  assert.strictEqual(state.mode, "dice");
+  assert.strictEqual(state.lives, 3);
+  assert.strictEqual(state.active[0].boss, false);
+  assert.strictEqual(G.pass(state).reason, "not-simple");
   assert.strictEqual(G.submit(state, state.active[0].parts[0].word).ok, true);
-  assert.strictEqual(state.score, 1);
-  G.tick(state, 20);
-  assert.strictEqual(G.pass(state).ok, true);
-  assert.strictEqual(state.passesLeft, 0);
+  assert.ok(state.score >= 1);
   const end = G.createGame(words, "dice", 5);
-  G.tick(end, 60000);
+  G.tick(end, 15000);
+  assert.strictEqual(end.lives, 2);
+  assert.notStrictEqual(end.phase, "over");
+  G.tick(end, 15000);
+  G.tick(end, 15000);
   assert.strictEqual(end.phase, "over");
+  assert.strictEqual(end.lives, 0);
 }
 
 {
@@ -701,8 +693,8 @@ for (let seed = 1; seed <= 40; seed += 1) {
     }
     return counts;
   }
-  const early = G.bossMixWeights(1);
-  const mid = G.bossMixWeights(50);
+  const early = G.bossMixWeights(51);
+  const mid = G.bossMixWeights(75);
   const late = G.bossMixWeights(100);
   assert.ok(early.normal > early[2] && early[2] > early[3] && early[3] > early[4]);
   assert.ok(mid[2] > early[2] && mid[2] < late[2]);
@@ -710,15 +702,16 @@ for (let seed = 1; seed <= 40; seed += 1) {
   assert.ok(Math.abs(late[2] - late[3]) < 1e-9 && Math.abs(late[3] - late[4]) < 1e-9);
   const seeds = 700;
   const at = (mode, number) => tally(mode, number, seeds);
-  const simpleEarly = at("simple", 1);
   const lifeEarly = at("life", 1);
   const lifeLate = at("life", 100);
   const rankLate = at("rank", 100);
-  const simpleLate = at("simple", 100);
+  const diceLate = at("dice", 100);
   assert.strictEqual(lifeEarly.normal, seeds);
-  assert.ok(simpleEarly.normal > simpleEarly[2] * 2, JSON.stringify(simpleEarly));
-  assert.ok(simpleEarly[2] > simpleEarly[3] && simpleEarly[3] > simpleEarly[4], JSON.stringify(simpleEarly));
-  for (const counts of [simpleLate, lifeLate, rankLate]) {
+  assert.strictEqual(at("simple", 2).normal, seeds);
+  assert.strictEqual(at("simple", 10).normal, seeds);
+  assert.strictEqual(at("simple", 51).normal, seeds);
+  assert.strictEqual(at("simple", 100).normal, seeds);
+  for (const counts of [diceLate, lifeLate, rankLate]) {
     for (const key of ["normal", 2, 3, 4]) {
       const rate = counts[key] / seeds;
       assert.ok(rate > 0.17 && rate < 0.33, key + " " + rate + " " + JSON.stringify(counts));
@@ -728,18 +721,17 @@ for (let seed = 1; seed <= 40; seed += 1) {
   assert.strictEqual(spawnNumber(fresh(), 30).exclusive, true);
 
   const diceWords = ["さくら", "みかん", "ぶどう", "りんご", "ももたろう", "カレー", "サンドイッチ", "ハンバーガー"];
-  const dice20 = spawnNumber(fresh(diceWords, "dice", 2), 20);
-  assert.strictEqual(dice20.boss, true);
-  assert.strictEqual(dice20.exclusive, false);
-  assert.strictEqual(dice20.parts.length, 2);
-  assert.strictEqual(dice20.totalMs, 25000);
-  assert.strictEqual(spawnNumber(fresh(diceWords, "dice", 2), 40).parts.length, 3);
-  assert.strictEqual(spawnNumber(fresh(diceWords, "dice", 2), 60).parts.length, 4);
-  assert.strictEqual(spawnNumber(fresh(diceWords, "dice", 2), 60).totalMs, 45000);
-  assert.strictEqual(spawnNumber(fresh(diceWords, "dice", 2), 80).parts.length, 2);
-  const dice19 = spawnNumber(fresh(diceWords, "dice", 2), 19);
-  assert.strictEqual(dice19.boss, false);
-  assert.ok(dice19.parts[0].chars.length >= 3 && dice19.parts[0].chars.length <= 9);
+  const dice10 = spawnNumber(fresh(diceWords, "dice", 2), 10);
+  assert.strictEqual(dice10.boss, true);
+  assert.strictEqual(dice10.exclusive, true);
+  assert.strictEqual(dice10.parts.length, 2);
+  assert.strictEqual(dice10.totalMs, 25000);
+  assert.strictEqual(spawnNumber(fresh(diceWords, "dice", 2), 2).boss, false);
+  assert.strictEqual(spawnNumber(fresh(diceWords, "dice", 2), 20).parts.length, 2);
+  assert.strictEqual(spawnNumber(fresh(diceWords, "dice", 2), 30).parts.length, 3);
+  assert.strictEqual(spawnNumber(fresh(diceWords, "dice", 2), 40).parts.length, 4);
+  assert.strictEqual(spawnNumber(fresh(diceWords, "dice", 2), 40).totalMs, 45000);
+  assert.strictEqual(spawnNumber(fresh(diceWords, "dice", 2), 50).boss, false);
 
   const rankedPause = fresh(PLAIN, "rank", 1);
   const rankBefore = rankedPause.active[0].remainMs;

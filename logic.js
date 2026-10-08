@@ -8,7 +8,7 @@
   "use strict";
 
   const RULES = {
-    simpleMs: 60000,
+    simpleMs: 120000,
     simpleHintMs: 10000,
     lives: 3,
     normalMs: 15000,
@@ -200,12 +200,13 @@
   }
 
   function likeSimple(mode) {
-    return mode === "simple" || mode === "dice";
+    return mode === "simple";
   }
 
   function bossMixWeights(questionNumber) {
-    const span = Math.max(1, RULES.bossFlatAt - 1);
-    const t = Math.min(1, Math.max(0, ((questionNumber || 1) - 1) / span));
+    const startAt = RULES.exclusiveUntil + 1;
+    const span = Math.max(1, RULES.bossFlatAt - startAt);
+    const t = Math.min(1, Math.max(0, ((questionNumber || startAt) - startAt) / span));
     const start = RULES.bossWeightAtStart;
     const weight = (key) => {
       const from = start[key];
@@ -232,19 +233,18 @@
     return { size: chosen, ms: RULES.bossMs[chosen], exclusive: false };
   }
 
+  function paceNumber(state) {
+    return state.mode === "life1" ? Math.max(state.nextNumber, RULES.bossFlatAt) : state.nextNumber;
+  }
+
   function bossSpec(questionNumber, mode, rng) {
-    if (mode === "dice") {
-      if (questionNumber > 0 && questionNumber % 20 === 0) {
-        const size = [2, 3, 4][(questionNumber / 20 - 1) % 3];
-        return { size, ms: RULES.bossMs[size], exclusive: false };
-      }
-      return null;
-    }
-    if (!likeSimple(mode) && questionNumber > 0 && questionNumber < RULES.exclusiveUntil && questionNumber % 10 === 0) {
+    if (mode === "life1") questionNumber = Math.max(questionNumber || 1, RULES.bossFlatAt);
+    if (mode === "simple") return null;
+    if (questionNumber > 0 && questionNumber < RULES.exclusiveUntil && questionNumber % 10 === 0) {
       const size = questionNumber >= 40 ? 4 : questionNumber >= 30 ? 3 : 2;
       return { size, ms: RULES.bossMs[size], exclusive: true };
     }
-    if (!likeSimple(mode) && questionNumber <= RULES.exclusiveUntil) return null;
+    if (questionNumber <= RULES.exclusiveUntil) return null;
     if (!rng) return null;
     return pickBossMix(questionNumber, rng);
   }
@@ -332,7 +332,7 @@
         state.bag = [];
         continue;
       }
-      const chosen = pool[pickWeighted(pool, state.nextNumber, state.rng)];
+      const chosen = pool[pickWeighted(pool, paceNumber(state), state.rng)];
       state.bag = state.bag.filter((entry) => entry !== chosen);
       return chosen;
     }
@@ -361,34 +361,7 @@
     return drawUniform(state);
   }
 
-  function drawDice(state) {
-    const active = activeMatches(state);
-    const skipped = [];
-    ensureBag(state);
-    while (state.bag.length) {
-      const entry = state.bag.pop();
-      const length = entry.chars.length;
-      if (length < 3 || length > 9 || active.has(entry.match)) {
-        skipped.push(entry);
-        continue;
-      }
-      state.bag = skipped.concat(state.bag);
-      return entry;
-    }
-    state.bag = skipped;
-    const again = state.dict.find((entry) => {
-      const length = entry.chars.length;
-      return length >= 3 && length <= 9 && !active.has(entry.match);
-    });
-    if (again) {
-      state.bag = state.bag.filter((entry) => entry !== again);
-      return again;
-    }
-    return drawUniform(state);
-  }
-
   function drawNormal(state) {
-    if (state.mode === "dice") return drawDice(state);
     if (state.mode === "simple") return drawUniform(state);
     return drawBiased(state);
   }
@@ -397,10 +370,6 @@
     const active = activeMatches(state);
     let source = state.dict.filter((entry) => !active.has(entry.match));
     if (source.length < count) source = state.dict.slice();
-    if (state.mode === "dice") {
-      const band = source.filter((entry) => entry.chars.length >= 3 && entry.chars.length <= 9);
-      if (band.length >= count) source = band;
-    }
     if (maxLen) {
       const short = source.filter((entry) => entry.chars.length <= maxLen);
       if (short.length >= count) source = short;
@@ -417,7 +386,7 @@
     } else {
       const pool = source.slice();
       while (picked.length < count && pool.length) {
-        const entry = pool.splice(pickWeighted(pool, state.nextNumber, state.rng), 1)[0];
+        const entry = pool.splice(pickWeighted(pool, paceNumber(state), state.rng), 1)[0];
         if (seen.has(entry.match)) continue;
         seen.add(entry.match);
         picked.push(entry);
@@ -493,6 +462,7 @@
   }
 
   function maxSlotsFor(state) {
+    if (state.mode === "life1") return 4;
     const done = finishedCount(state);
     if (done >= 30) return 4;
     if (done >= 20) return 3;
@@ -556,7 +526,7 @@
       });
     }
     size = Math.min(size, state.dict.length);
-    const maxLen = state.mode === "dice" ? 9 : spec.exclusive ? (size >= 4 ? 5 : 6) : 4;
+    const maxLen = spec.exclusive ? (size >= 4 ? 5 : 6) : 4;
     let entries = drawEntries(state, size, maxLen);
     if (entries.length < 2) {
       return makePuzzle(state, [entries[0] || drawNormal(state)], {
@@ -622,7 +592,7 @@
     const prepared = prepareDict(rawWords);
     const rank = mode === "rank";
     const state = {
-      mode: mode === "rank" || mode === "simple" || mode === "dice" ? mode : "life",
+      mode: mode === "rank" || mode === "simple" || mode === "dice" || mode === "life1" ? mode : "life",
       hints: rank ? false : opts.hints !== false,
       dict: prepared.dict,
       groups: prepared.groups,
@@ -633,7 +603,7 @@
       nextNumber: 1,
       nextId: 1,
       spawnAcc: 0,
-      lives: RULES.lives,
+      lives: mode === "life1" ? 1 : RULES.lives,
       score: 0,
       correct: 0,
       combo: 0,
@@ -658,6 +628,7 @@
     }
     if (likeSimple(state.mode)) spawnSimple(state);
     else spawnUpcoming(state);
+    if (state.mode === "life1") state.spawnAcc = spawnIntervalMs(paceNumber(state));
     return state;
   }
 
@@ -679,7 +650,7 @@
 
   function noteSpawn(state, result) {
     if (result === "spawned" && state.phase === "playing") {
-      state.spawnAcc = spawnIntervalMs(state.nextNumber);
+      state.spawnAcc = spawnIntervalMs(paceNumber(state));
     } else if (result === "blocked") {
       state.spawnAcc = 0;
     }
@@ -709,7 +680,7 @@
       cleared: remainParts.length === 0,
     });
     if (remainParts.length === 0) {
-      if (state.mode === "life" && puzzle.boss) {
+      if ((state.mode === "life" || state.mode === "dice" || state.mode === "life1") && puzzle.boss) {
         const bonus = RULES.bossClearBonusPerWord * puzzle.parts.length;
         state.score += bonus;
         pushEvent(state, { type: "bonus", id: puzzle.id, points: bonus });
@@ -746,9 +717,10 @@
 
   function recoverOnMiss(state) {
     if (!state || likeSimple(state.mode) || state.phase === "over") return;
+    const cap = state.mode === "life1" ? 1 : RULES.lives;
     const reached = Math.max(0, state.nextNumber - 1);
     const due = Math.floor(reached / 50);
-    if (due <= state.healsUsed || state.lives >= RULES.lives) return;
+    if (due <= state.healsUsed || state.lives >= cap) return;
     state.lives += 1;
     state.healsUsed += 1;
     pushEvent(state, { type: "heal", lives: state.lives, number: reached });
@@ -768,7 +740,7 @@
     state.active = state.active.filter((item) => item.id !== puzzle.id);
     if (likeSimple(state.mode)) state.wordElapsedMs = 0;
     state.revision += 1;
-    pushEvent(state, { type: "hammer", id: puzzle.id });
+    pushEvent(state, { type: "hammer", id: puzzle.id, words: unsolvedWords(puzzle) });
     releaseExclusive(state, puzzle);
     fillIfEmpty(state);
     return { ok: true };
@@ -858,7 +830,7 @@
       fillIfEmpty(state);
       return;
     }
-    if (state.phase === "wait-boss" || finishedCount(state) < 10) return;
+    if (state.phase === "wait-boss" || (state.mode !== "life1" && finishedCount(state) < 10)) return;
     state.spawnAcc -= dt;
     if (state.spawnAcc > 0) return;
     noteSpawn(state, spawnUpcoming(state));
@@ -866,7 +838,7 @@
 
   function tick(state, dt) {
     if (!state || state.phase === "over" || state.phase === "ready") return;
-    if (state.paused && state.mode !== "rank") return;
+    if (state.paused && state.mode !== "rank" && state.mode !== "life1") return;
     const step = Math.max(0, dt);
     if (likeSimple(state.mode)) {
       state.elapsedMs += step;

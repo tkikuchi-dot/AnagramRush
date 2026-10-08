@@ -79,8 +79,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px 12px;
+    flex-wrap: wrap;
   }
+  .title-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
   .help-btn {
     background: transparent;
     color: var(--gold);
@@ -90,6 +92,8 @@
     font-size: 14px;
     font-weight: 900;
     letter-spacing: 0.06em;
+    white-space: nowrap;
+    flex: none;
   }
   h1 {
     display: flex;
@@ -115,6 +119,9 @@
   .mode .desc, .mode .best { color: var(--muted); font-size: 14px; }
   .mode-life { border-color: rgba(255, 45, 138, 0.75); box-shadow: inset 3px 0 0 var(--red); }
   .genre-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+  .level-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 8px; }
+  .level-line .genre-row { margin: 0; }
+  .level-note { margin: 0; flex: 1 1 220px; line-height: 1.45; }
   .genre {
     background: transparent;
     color: var(--ink);
@@ -228,7 +235,8 @@
     100% { transform: none; }
   }
   #quit { grid-area: quit; }
-  #play-help { grid-area: help; color: var(--gold); }
+  .hud-links { grid-area: help; display: flex; gap: 10px; align-items: center; }
+  .hud-links .textbtn { color: var(--gold); white-space: nowrap; }
   #mute-play { grid-area: mute; justify-self: end; }
   #hud-score { grid-area: score; }
   #hud-sub { grid-area: sub; }
@@ -344,6 +352,8 @@
   .dice-scene.count-3 .dice-row, .dice-scene.count-4 .dice-row { gap: 32px; }
   .dice-scene.count-5, .dice-scene.count-6, .dice-scene.count-7, .dice-scene.count-8 { --die: 80px; gap: 22px; }
   .dice-scene.count-5 .dice-row, .dice-scene.count-6 .dice-row, .dice-scene.count-7 .dice-row, .dice-scene.count-8 .dice-row { gap: 26px; }
+  .board.pair .dice-scene, .board.pyramid .dice-scene, .board.grid .dice-scene { --die: 68px; gap: 8px; }
+  .board.pair .dice-scene .dice-row, .board.pyramid .dice-scene .dice-row, .board.grid .dice-scene .dice-row { gap: 8px; }
   .dice-scene .genre-tag { flex: none; margin: 0; }
   .dice-row {
     display: flex;
@@ -368,6 +378,7 @@
   .dice.spin-b { animation-name: dice-spin-b; }
   .dice.spin-c { animation-name: dice-spin-c; }
   .dice.spin-d { animation-name: dice-spin-d; }
+  .dice.spin-e { animation-name: dice-spin-e; }
   .dice span {
     position: absolute;
     width: var(--die);
@@ -392,40 +403,35 @@
   .dice span:nth-child(5) { transform: rotateX(90deg) translateZ(calc(var(--die) / 2)); }
   .dice span:nth-child(6) { transform: rotateX(-90deg) translateZ(calc(var(--die) / 2)); }
   @keyframes dice-spin-a {
-    0%, 12% { transform: rotateX(-14deg) rotateY(18deg); }
-    16%, 28% { transform: rotateX(-14deg) rotateY(-72deg); }
-    32%, 44% { transform: rotateX(-14deg) rotateY(-162deg); }
-    48%, 60% { transform: rotateX(-14deg) rotateY(-252deg); }
-    64%, 76% { transform: rotateX(-76deg) rotateY(-342deg); }
-    80%, 90% { transform: rotateX(76deg) rotateY(-342deg); }
-    100% { transform: rotateX(-14deg) rotateY(-342deg); }
+    0% { transform: rotateX(24deg) rotateY(40deg) rotateZ(-18deg); }
+    17% { transform: rotateX(150deg) rotateY(-70deg) rotateZ(80deg); }
+    39% { transform: rotateX(30deg) rotateY(220deg) rotateZ(-50deg); }
+    58% { transform: rotateX(250deg) rotateY(60deg) rotateZ(160deg); }
+    76% { transform: rotateX(110deg) rotateY(310deg) rotateZ(20deg); }
+    100% { transform: rotateX(384deg) rotateY(400deg) rotateZ(342deg); }
   }
   @keyframes dice-spin-b {
-    0%, 12% { transform: rotateX(-14deg) rotateY(18deg); }
-    16%, 28% { transform: rotateX(-14deg) rotateY(108deg); }
-    32%, 44% { transform: rotateX(-14deg) rotateY(198deg); }
-    48%, 60% { transform: rotateX(-14deg) rotateY(288deg); }
-    64%, 76% { transform: rotateX(-76deg) rotateY(378deg); }
-    80%, 90% { transform: rotateX(76deg) rotateY(378deg); }
-    100% { transform: rotateX(-14deg) rotateY(378deg); }
+    0%, 14% { transform: rotateX(0deg) rotateY(0deg); }
+    18%, 32% { transform: rotateX(0deg) rotateY(-90deg); }
+    36%, 50% { transform: rotateX(0deg) rotateY(-180deg); }
+    54%, 68% { transform: rotateX(0deg) rotateY(-270deg); }
+    72%, 84% { transform: rotateX(-90deg) rotateY(-360deg); }
+    88%, 96% { transform: rotateX(90deg) rotateY(-360deg); }
+    100% { transform: rotateX(0deg) rotateY(-360deg); }
   }
   @keyframes dice-spin-c {
-    0%, 12% { transform: rotateX(-76deg) rotateY(18deg); }
-    16%, 28% { transform: rotateX(76deg) rotateY(18deg); }
-    32%, 44% { transform: rotateX(-14deg) rotateY(18deg); }
-    48%, 60% { transform: rotateX(-14deg) rotateY(-72deg); }
-    64%, 76% { transform: rotateX(-14deg) rotateY(-162deg); }
-    80%, 90% { transform: rotateX(-14deg) rotateY(-252deg); }
-    100% { transform: rotateX(-76deg) rotateY(-342deg); }
+    0% { transform: rotate3d(1, 1, 0.4, 0deg); }
+    100% { transform: rotate3d(1, 1, 0.4, 360deg); }
   }
   @keyframes dice-spin-d {
-    0%, 12% { transform: rotateX(76deg) rotateY(18deg); }
-    16%, 28% { transform: rotateX(-14deg) rotateY(-72deg); }
-    32%, 44% { transform: rotateX(-14deg) rotateY(-162deg); }
-    48%, 60% { transform: rotateX(-14deg) rotateY(-252deg); }
-    64%, 76% { transform: rotateX(-14deg) rotateY(-342deg); }
-    80%, 90% { transform: rotateX(-76deg) rotateY(-342deg); }
-    100% { transform: rotateX(76deg) rotateY(-342deg); }
+    0% { transform: rotateX(-16deg) rotateY(0deg) rotateZ(12deg); }
+    100% { transform: rotateX(-16deg) rotateY(-360deg) rotateZ(12deg); }
+  }
+  @keyframes dice-spin-e {
+    0% { transform: rotateX(0deg) rotateZ(0deg) rotateY(8deg); }
+    28% { transform: rotateX(200deg) rotateZ(150deg) rotateY(70deg); }
+    62% { transform: rotateX(430deg) rotateZ(-40deg) rotateY(210deg); }
+    100% { transform: rotateX(720deg) rotateZ(360deg) rotateY(368deg); }
   }
   .is-paused .dice { animation-play-state: paused; }
   .board.single { display: flex; }
@@ -566,6 +572,7 @@
   #dock {
     display: flex;
     gap: 8px;
+    min-width: 0;
     padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
     background: rgba(3, 7, 11, 0.94);
     border-top: 1px solid rgba(62, 240, 255, 0.25);
@@ -747,14 +754,21 @@
     <div class="title-wrap">
       <div class="title-bar">
         <p class="eyebrow">SCORE ATTACK</p>
-        <button type="button" id="open-help" class="help-btn">遊び方</button>
+        <div class="title-tools">
+          <button type="button" id="toggle-bird" class="help-btn" aria-pressed="true">鳥オン</button>
+          <button type="button" id="open-help" class="help-btn">遊び方</button>
+          <button type="button" id="open-hammer" class="help-btn">🔨の使い方</button>
+        </div>
       </div>
       <h1>アナグラムラッシュ</h1>
       <p class="lead">ばらけた文字を、もとの単語に戻せ。</p>
-      <div class="genre-row" id="level-row">
-        <button type="button" class="genre" data-level="easy" aria-pressed="false">イージー</button>
-        <button type="button" class="genre on" data-level="normal" aria-pressed="true">ノーマル</button>
-        <button type="button" class="genre" data-level="hard" aria-pressed="false">ハード</button>
+      <div class="level-line">
+        <div class="genre-row" id="level-row">
+          <button type="button" class="genre" data-level="easy" aria-pressed="false">イージー</button>
+          <button type="button" class="genre on" data-level="normal" aria-pressed="true">ノーマル</button>
+          <button type="button" class="genre" data-level="hard" aria-pressed="false">ハード</button>
+        </div>
+        <p class="note level-note">ライフ3（ランキング）と激ムズライフ1（ランキング）は、難易度を変えても出題は同じです。</p>
       </div>
       <div class="genre-row" id="genre-row">
         <button type="button" class="genre on" data-genre="mammal" aria-pressed="true">哺乳類</button>
@@ -776,15 +790,15 @@
       </div>
       <div class="modes">
         <button type="button" id="start-simple" class="mode">
-          <span class="kicker">60秒</span>
+          <span class="kicker">120秒</span>
           <span class="name">シンプル</span>
           <span class="desc">正解した数を競う</span>
           <span class="best num" id="best-simple">BEST —</span>
         </button>
         <button type="button" id="start-dice" class="mode">
-          <span class="kicker">60秒・3〜9文字</span>
-          <span class="name">シングルダイス</span>
-          <span class="desc">回る立方体で、正解した数を競う</span>
+          <span class="kicker">♥ × 3</span>
+          <span class="name">ダイス</span>
+          <span class="desc">回る立方体。ライフが尽きるまでのスコア</span>
           <span class="best num" id="best-dice">BEST —</span>
         </button>
         <button type="button" id="start-life" class="mode mode-life">
@@ -793,17 +807,28 @@
           <span class="desc">ライフが尽きるまでのスコア</span>
           <span class="best num" id="best-life">BEST —</span>
         </button>
+        <button type="button" id="start-life1" class="mode mode-life">
+          <span class="kicker">♥ × 1</span>
+          <span class="name">激ムズライフ1（ランキング）</span>
+          <span class="desc">最初から終盤。ライフが減ると終わり</span>
+          <span class="best num" id="best-life1">TOP —</span>
+        </button>
         <button type="button" id="start-rank" class="mode">
           <span class="kicker">哺乳類・魚類・料理</span>
-          <span class="name">ランキング</span>
+          <span class="name">ライフ3（ランキング）</span>
           <span class="desc">1語100点。連続しても増えない</span>
           <span class="best num" id="best-rank">TOP —</span>
         </button>
       </div>
       <div class="rank-box">
-        <p class="eyebrow">RANK 10</p>
+        <p class="eyebrow">ライフ3（ランキング）</p>
         <ol id="title-rank" class="rank-list"></ol>
         <p class="note" id="rank-note"></p>
+      </div>
+      <div class="rank-box">
+        <p class="eyebrow">激ムズライフ1（ランキング）</p>
+        <ol id="title-life1-rank" class="rank-list"></ol>
+        <p class="note" id="life1-rank-note"></p>
       </div>
       <div class="title-actions">
         <button type="button" id="open-words" class="ghost">単語を登録</button>
@@ -825,28 +850,25 @@
         <li>同じ文字で別の単語が辞書にあるときは、最初から先頭の1文字が見える。</li>
         <li>ボスがほかの問題に混ざるときは、ふつうの問題の方が出やすい。ボスは2語がいちばん多く、3語は少なく、4語はさらに少ない。100問に近づくと、ふつうの問題と2語・3語・4語のボスが同じくらい出る。</li>
       </ul>
-      <h2>パスハンマー</h2>
+      <h2 id="help-hammer">ブレイクハンマー</h2>
       <ul>
-        <li>下の欄の左にあるハンマーを、消したい問題までドラッグする。</li>
+        <li>下の欄の左にあるブレイクハンマーを、消したい問題までドラッグする。</li>
         <li>1プレイに1回だけ使える。</li>
         <li>その問題は消える。点数は入らず、ライフも減らない。連続はリセットされる。</li>
+        <li>消した問題の答えが、上の空いているところに出る。</li>
       </ul>
       <h2>シンプル</h2>
       <ul>
-        <li>60秒で、正解した数を競う。</li>
+        <li>120秒で、正解した数を競う。</li>
         <li>何も入れずに決定するとパス。1回だけ。ボタンでも同じ。</li>
         <li>ふつうの問題は15秒。3分の1で先頭の1文字、3分の2で2文字目が出る。ゼロでその問題は不正解。</li>
-        <li>ボスは、ふつうの問題に混ざって出る。</li>
-        <li>30問に到達すると、BGMが変わる。</li>
       </ul>
-      <h2>シングルダイス</h2>
+      <h2>ダイス</h2>
       <ul>
-        <li>ルールはシンプルと同じ。60秒、パスは1回。</li>
-        <li>ふつうの問題は3〜9文字。文字は立方体の6面に割り振る。余った面は空欄。6面を超えるときはサイコロを増やす。</li>
-        <li>その問題のあいだに、6面が順に正面を向く。回り終わると、もう一周する。回り方は4種類。</li>
-        <li>20問目は2語のボス、40問目は3語、60問目は4語。そのあとも20問ごとに、2語、3語、4語の順。</li>
+        <li>進み方はライフ3と同じ。ライフ3つ、同時に出る数、ボス、点数も同じ。</li>
+        <li>問題は立方体。文字は6面に割り振る。余った面は空欄。6面を超えるときはサイコロを増やす。</li>
+        <li>問題が出ているあいだ、サイコロは回り続ける。回り方は5種類。</li>
         <li>ボスもサイコロ。面が足りないときはサイコロを増やす。</li>
-        <li>30問に到達すると、BGMが変わる。</li>
       </ul>
       <h2>ライフ3</h2>
       <ul>
@@ -869,12 +891,12 @@
       <ul>
         <li>イージーは3〜6文字、ノーマルは3〜8文字、ハードは4〜9文字だけ出る。</li>
         <li>ジャンルは哺乳類、魚類、料理、ポケモンから、いくつでも選べる。</li>
-        <li>ランキングに出るのは、哺乳類、魚類、料理。</li>
+        <li>ライフ3（ランキング）と激ムズライフ1（ランキング）に出るのは、哺乳類、魚類、料理。</li>
         <li>別解がある問題は、最初から先頭の1文字が見える。</li>
-        <li>10問正解するごとに、右上に鳥が出る。50問目からはサングラスの鳥になる。</li>
-        <li>「単語を登録」は、シンプルとライフ3の出題に足される。</li>
+        <li>10問正解するごとに、右上に鳥が出る。50問目からはサングラスの鳥になる。タイトルの鳥ボタンで止められる。</li>
+        <li>「単語を登録」は、シンプル、ダイス、ライフ3の出題に足される。</li>
       </ul>
-      <h2>ランキング</h2>
+      <h2>ライフ3（ランキング）</h2>
       <ul>
         <li>ライフ3と同じ進み方。ジャンルは哺乳類、魚類、料理。文字数は3〜9、ヒントはオフ。</li>
         <li>遊び方や中断の確認を開いても、画面を離れても、タイマーは止まらない。</li>
@@ -882,8 +904,17 @@
         <li>序盤は3〜5文字が多い。6文字以上はときどき。80問あたりで、どの長さも同じくらい出る。</li>
         <li>1語100点。速さでも連続でも増えない。</li>
         <li>エンターで間違えると、50問ごとに1回、ライフが1つ戻る。3つより増えない。</li>
-        <li>上位10件に入ると、名前を登録できる。空欄のままなら「とくめいきぼう君」。</li>
-        <li>ランキングは、遊んだ人のスコアが同じ場所に集まる。</li>
+        <li>上位10件に入ると、名前を登録できる。空欄のままなら「とくめいきぼう君」。載せないボタンもある。</li>
+        <li>スコアは、遊んだ人と同じ場所に集まる。</li>
+      </ul>
+      <h2>激ムズライフ1（ランキング）</h2>
+      <ul>
+        <li>ライフは1つ。時間切れでライフが減ると、そこで終わり。</li>
+        <li>最初からライフ3の終盤。同時に4問まで出て、追加も速い。</li>
+        <li>文字の長さも、ボスの混ざり方も、最初からいちばん難しい状態。</li>
+        <li>ジャンルは哺乳類、魚類、料理。文字数は4〜9。点数はライフ3と同じ。</li>
+        <li>遊び方や中断の確認を開いても、画面を離れても、タイマーは止まらない。</li>
+        <li>上位10件に入ると、名前を登録できる。載せないボタンもある。スコアの集まる場所は、ライフ3（ランキング）とは別。</li>
       </ul>
     </div>
   </section>
@@ -906,10 +937,13 @@
     <div class="play-frame">
       <header class="hud">
         <button type="button" id="quit" class="textbtn">やめる</button>
-        <button type="button" id="play-help" class="textbtn">遊び方</button>
+        <div class="hud-links">
+          <button type="button" id="play-help" class="textbtn">遊び方</button>
+          <button type="button" id="play-hammer" class="textbtn">🔨の使い方</button>
+        </div>
         <p id="hud-score" class="score num"><span id="hud-score-value">0</span></p>
         <div id="hud-side">
-          <p id="clock" class="clock num" hidden>60.0</p>
+          <p id="clock" class="clock num" hidden>120.0</p>
           <p id="hearts" class="hearts" hidden><span>♥</span><span>♥</span><span>♥</span></p>
         </div>
         <button type="button" id="mute-play" class="textbtn">音</button>
@@ -922,7 +956,7 @@
         <div id="board" class="board"></div>
       </div>
       <form id="dock" autocomplete="off">
-        <button type="button" id="hammer" aria-label="パスハンマー" hidden>🔨</button>
+        <button type="button" id="hammer" aria-label="ブレイクハンマー" hidden>🔨</button>
         <input id="answer" name="anagram-answer" lang="ja" inputmode="text" enterkeyhint="send" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" maxlength="32" aria-label="解答" placeholder="ひらがな・カタカナ">
         <button type="button" id="pass" hidden>パス</button>
         <button type="submit" id="send">解答</button>
@@ -955,8 +989,9 @@
         <p>ランキングに入りました。名前をどうぞ。</p>
         <input id="rank-name" name="rank-name" lang="ja" maxlength="12" autocomplete="nickname" enterkeyhint="done" placeholder="とくめいきぼう君" aria-label="ランキングの名前">
         <button type="submit">名前を登録</button>
+        <button type="button" id="skip-rank" class="ghost">ランキングに載せない</button>
       </form>
-      <p class="eyebrow">RANK 10</p>
+      <p class="eyebrow" id="result-rank-label">ライフ3（ランキング）</p>
       <ol id="result-rank-list" class="rank-list"></ol>
       <p class="note" id="result-rank-note"></p>
     </div>

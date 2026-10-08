@@ -9,11 +9,14 @@
   const RANK_GENRES = ["mammal", "fish", "food"];
   const LEVEL_KEY = "anagram.level.v1";
   const RANK_KEY = "anagram.rank.v1";
+  const LIFE1_RANK_KEY = "anagram.rank.life1.v1";
   const BEST_KEY = "anagram.best.v1";
   const MUTE_KEY = "anagram.mute.v1";
+  const BIRD_KEY = "anagram.bird.v1";
   const BGM_KEY = "anagram.bgm.v1";
   const SE_VOL_KEY = "anagram.se.v1";
   const RANK_URL = "https://anagram-2c857-default-rtdb.asia-southeast1.firebasedatabase.app/ranking.json";
+  const LIFE1_RANK_URL = "https://anagram-2c857-default-rtdb.asia-southeast1.firebasedatabase.app/rankingLife1.json";
   const DEFAULT_RANK_NAME = "とくめいきぼう君";
   const RANK_NAME_MAX = 12;
   const GENRE_LABEL = { mammal: "哺乳類", fish: "魚類", food: "料理", pokemon: "ポケモン" };
@@ -22,7 +25,11 @@
   const $ = (id) => document.getElementById(id);
   function likeSimple(name) {
     const current = name == null ? mode : name;
-    return current === "simple" || current === "dice";
+    return current === "simple";
+  }
+  function clockLocked(name) {
+    const current = name == null ? (state ? state.mode : mode) : name;
+    return current === "rank" || current === "life1";
   }
 
   let state = null;
@@ -35,6 +42,7 @@
   let composing = false;
   let sentAt = 0;
   let muted = false;
+  let birdOff = false;
   let rankOffer = null;
   let nameComposing = false;
   let hammerDrag = null;
@@ -42,7 +50,7 @@
   let birdMark = "";
   const BGM_FILES = {
     simple: "BGM/\u30b7\u30f3\u30b0\u30eb\u30e2\u30fc\u30c9.mp3",
-    simple30: "BGM/\u30b7\u30f3\u30b0\u30eb\u30e2\u30fc\u30c9\u5c02\u752830\u554f\u5230\u9054\u6642.mp3",
+    dice: "BGM/\u30c0\u30a4\u30b9\u30e2\u30fc\u30c9.mp3",
     life: "BGM/\u30e9\u30a4\u30d53-\u30e9\u30f3\u30ad\u30f3\u30b0\u30e2\u30fc\u30c9.mp3",
     rank: "BGM/\u30e9\u30a4\u30d53-\u30e9\u30f3\u30ad\u30f3\u30b0\u30e2\u30fc\u30c9.mp3",
     after50: "BGM/50\u554f\u5230\u9054\u5f8c\u306b\u6d41\u3059BGM.mp3",
@@ -103,8 +111,9 @@
     return genres[id] || "";
   }
   function playItems(forRank, mode) {
-    const ids = forRank ? RANK_GENRES : selectedGenres();
-    const range = forRank || mode === "dice" ? [3, 9] : LEVEL_RANGE[selectedLevel()];
+    const fixed = forRank || mode === "life1";
+    const ids = fixed ? RANK_GENRES : selectedGenres();
+    const range = mode === "life1" ? LEVEL_RANGE.hard : forRank ? [3, 9] : LEVEL_RANGE[selectedLevel()];
     const items = [];
     const pushLines = (text, genre) => {
       for (const line of String(text || "").split(/\r?\n/)) {
@@ -116,7 +125,7 @@
       }
     };
     for (const id of ids) pushLines(genreSource(id), id);
-    if (!forRank) pushLines(storageGet(WORDS_KEY) || "", "");
+    if (!fixed) pushLines(storageGet(WORDS_KEY) || "", "");
     return items;
   }
   function loadBest() {
@@ -126,10 +135,11 @@
         simple: Number(parsed.simple) || 0,
         dice: Number(parsed.dice) || 0,
         life: Number(parsed.life) || 0,
+        life1: Number(parsed.life1) || 0,
         rank: Number(parsed.rank) || 0,
       };
     } catch (err) {
-      return { simple: 0, dice: 0, life: 0, rank: 0 };
+      return { simple: 0, dice: 0, life: 0, life1: 0, rank: 0 };
     }
   }
   function saveBest(best) {
@@ -164,10 +174,10 @@
     milestoneTimer = setTimeout(() => { el.hidden = true; }, 2400);
   }
 
-  function showReveal(words) {
+  function showReveal(words, label) {
     if (!words || !words.length) return;
     const el = $("reveal");
-    el.textContent = "時間切れ　" + words.join("　");
+    el.textContent = (label || "時間切れ") + "　" + words.join("　");
     el.hidden = false;
     clearTimeout(revealTimer);
     revealTimer = setTimeout(() => { el.hidden = true; }, 3600);
@@ -185,6 +195,12 @@
     const label = muted ? "音オフ" : "音オン";
     $("toggle-sound").textContent = label;
     $("mute-play").textContent = label;
+  }
+
+  function updateBirdLabel() {
+    const button = $("toggle-bird");
+    button.textContent = birdOff ? "鳥オフ" : "鳥オン";
+    button.setAttribute("aria-pressed", birdOff ? "false" : "true");
   }
 
   function updateBests() {
@@ -219,16 +235,21 @@
   function entersRank(entries, score) {
     return entries.length < 10 || score >= entries[entries.length - 1].score;
   }
-  function loadLocalRank() {
+  function rankStore(board) {
+    return board === "life1"
+      ? { url: LIFE1_RANK_URL, key: LIFE1_RANK_KEY, label: "激ムズライフ1（ランキング）", list: "title-life1-rank", note: "life1-rank-note", best: "best-life1" }
+      : { url: RANK_URL, key: RANK_KEY, label: "ライフ3（ランキング）", list: "title-rank", note: "rank-note", best: "best-rank" };
+  }
+  function loadLocalRank(board) {
     try {
-      return rankEntries(JSON.parse(storageGet(RANK_KEY) || "[]"));
+      return rankEntries(JSON.parse(storageGet(rankStore(board).key) || "[]"));
     } catch (err) {
       return [];
     }
   }
-  function rememberLocalRank(entry) {
-    const top = placeRank(loadLocalRank(), entry);
-    storageSet(RANK_KEY, JSON.stringify(top));
+  function rememberLocalRank(entry, board) {
+    const top = placeRank(loadLocalRank(board), entry);
+    storageSet(rankStore(board).key, JSON.stringify(top));
     return top;
   }
   function renderRank(listId, noteId, scores, shared) {
@@ -257,32 +278,34 @@
     if (!data || typeof data !== "object" || Array.isArray(data)) return [];
     return rankEntries(Object.keys(data).map((key) => data[key]));
   }
-  function loadSharedRank() {
-    return fetch(RANK_URL).then((res) => {
+  function loadSharedRank(board) {
+    return fetch(rankStore(board).url).then((res) => {
       if (!res.ok) throw new Error("rank");
       return res.json();
     }).then(boardFromFirebase);
   }
   function refreshRankBoard() {
-    loadSharedRank().then((scores) => {
-      renderRank("title-rank", "rank-note", scores, true);
-      const best = $("best-rank");
-      if (best) best.textContent = scores.length ? "TOP " + scores[0].score.toLocaleString("ja-JP") : "TOP —";
-    }).catch(() => {
-      const scores = loadLocalRank();
-      renderRank("title-rank", "rank-note", scores, false);
+    ["rank", "life1"].forEach((board) => {
+      const store = rankStore(board);
+      loadSharedRank(board).then((scores) => {
+        renderRank(store.list, store.note, scores, true);
+        const best = $(store.best);
+        if (best) best.textContent = scores.length ? "TOP " + scores[0].score.toLocaleString("ja-JP") : "TOP —";
+      }).catch(() => {
+        renderRank(store.list, store.note, loadLocalRank(board), false);
+      });
     });
   }
-  function publishRank(entry) {
-    const local = rememberLocalRank(entry);
+  function publishRank(entry, board) {
+    const local = rememberLocalRank(entry, board);
     renderRank("result-rank-list", "result-rank-note", local, false);
-    return fetch(RANK_URL, {
+    return fetch(rankStore(board).url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ score: entry.score, name: entry.name }),
     }).then((res) => {
       if (!res.ok) throw new Error("rank");
-      return loadSharedRank();
+      return loadSharedRank(board);
     }).then((scores) => {
       renderRank("result-rank-list", "result-rank-note", scores, true);
       refreshRankBoard();
@@ -294,23 +317,29 @@
     if (!rankOffer || rankOffer.saved) return;
     rankOffer.saved = true;
     $("rank-name-form").hidden = true;
-    publishRank({ score: rankOffer.score, name: cleanRankName(raw) });
+    publishRank({ score: rankOffer.score, name: cleanRankName(raw) }, rankOffer.board);
   }
-  function offerRankName(score) {
-    rankOffer = { score, saved: false };
+  function declineRank() {
+    if (!rankOffer || rankOffer.saved) return;
+    rankOffer.saved = true;
+    $("rank-name-form").hidden = true;
+  }
+  function offerRankName(score, board) {
+    rankOffer = { score, saved: false, board: board || "rank" };
     $("rank-name-form").hidden = true;
     $("rank-name").value = "";
-    const decide = (board, shared) => {
+    $("result-rank-label").textContent = rankStore(rankOffer.board).label;
+    const decide = (scores, shared) => {
       if (!rankOffer || rankOffer.score !== score || rankOffer.saved) return;
-      renderRank("result-rank-list", "result-rank-note", board, shared);
-      if (!entersRank(rankEntries(board), score)) {
+      renderRank("result-rank-list", "result-rank-note", scores, shared);
+      if (!entersRank(rankEntries(scores), score)) {
         rankOffer.saved = true;
         return;
       }
       $("rank-name-form").hidden = false;
       $("rank-name").focus();
     };
-    loadSharedRank().then((scores) => decide(scores, true)).catch(() => decide(loadLocalRank(), false));
+    loadSharedRank(rankOffer.board).then((scores) => decide(scores, true)).catch(() => decide(loadLocalRank(rankOffer.board), false));
   }
 
   function refreshTitle() {
@@ -336,10 +365,12 @@
     $("start-simple").disabled = prepared.dict.length < 1;
     $("start-dice").disabled = G.prepareDict(playItems(false, "dice")).dict.length < 1;
     $("start-life").disabled = prepared.dict.length < 1;
+    $("start-life1").disabled = G.prepareDict(playItems(false, "life1")).dict.length < 1;
     const ranked = G.prepareDict(playItems(true));
     $("start-rank").disabled = ranked.dict.length < 1;
     updateBests();
     updateSoundLabel();
+    updateBirdLabel();
     refreshRankBoard();
   }
 
@@ -416,7 +447,9 @@
   function trackForState() {
     const reached = state ? Math.max(0, state.nextNumber - 1) : 0;
     const current = state ? state.mode : mode;
-    if (likeSimple(current)) return reached >= 30 ? BGM_FILES.simple30 : BGM_FILES.simple;
+    if (current === "dice") return BGM_FILES.dice;
+    if (current === "life1") return BGM_FILES.after50;
+    if (current === "simple") return BGM_FILES.simple;
     if (reached >= 50) return BGM_FILES.after50;
     return BGM_FILES[current] || BGM_FILES.life;
   }
@@ -492,7 +525,7 @@
   function setHold(name, on) {
     if (on) holds.add(name);
     else holds.delete(name);
-    if (state) state.paused = state.mode === "rank" ? false : holds.size > 0;
+    if (state) state.paused = clockLocked(state.mode) ? false : holds.size > 0;
   }
 
   function shake(el) {
@@ -643,13 +676,14 @@
     scene.className = "dice-scene count-" + groups.length;
     const row = document.createElement("div");
     row.className = "dice-row";
-    const spin = ["a", "b", "c", "d"][(puzzle.number - 1) % 4];
+    const spin = ["a", "b", "c", "d", "e"][(puzzle.number - 1) % 5];
+    const laps = spin === "d" ? 3 : 2;
     for (const faces of groups) {
       const slot = document.createElement("div");
       slot.className = "die-slot";
       const die = document.createElement("div");
       die.className = "dice spin-" + spin;
-      die.style.animationDuration = (puzzle.totalMs / 2000) + "s";
+      die.style.animationDuration = (puzzle.totalMs / (laps * 1000)) + "s";
       for (const ch of faces) {
         const face = document.createElement("span");
         if (!ch) face.classList.add("blank");
@@ -736,7 +770,7 @@
 
   function syncMascot() {
     const el = $("mascot");
-    if (!state || state.phase === "over") {
+    if (birdOff || !state || state.phase === "over") {
       el.hidden = true;
       return;
     }
@@ -776,7 +810,11 @@
     } else {
       $("hud-score-value").textContent = state.score.toLocaleString("ja-JP");
       const hearts = $("hearts").children;
-      for (let i = 0; i < hearts.length; i += 1) hearts[i].classList.toggle("on", i < state.lives);
+      const heartCap = state.mode === "life1" ? 1 : 3;
+      for (let i = 0; i < hearts.length; i += 1) {
+        hearts[i].hidden = i >= heartCap;
+        hearts[i].classList.toggle("on", i < state.lives);
+      }
       const combo = state.mode === "rank" || state.combo < 2 ? "" : "  " + state.combo + "連続";
       $("hud-sub").textContent = "Q" + Math.max(1, state.nextNumber - 1) + combo;
     }
@@ -819,7 +857,7 @@
       toast("パスは1回だけです");
       shake($("pass"));
     } else if (ev.type === "hammer") {
-      toast("パス");
+      showReveal(ev.words, "答え");
     } else if (ev.type === "spawn") {
       if (ev.boss) playSe("boss");
       if (ev.number === 50) showMilestone("50問到達！");
@@ -848,7 +886,7 @@
     if (!state) return;
     const gap = lastTs ? Math.max(0, ts - lastTs) : 0;
     lastTs = ts;
-    if (state.mode === "rank") {
+    if (clockLocked(state.mode)) {
       let left = gap;
       while (left > 0 && state.phase !== "over") {
         const step = Math.min(100, left);
@@ -880,7 +918,7 @@
       tone(784, 0.06, "square", 0.14, 0.03);
       tone(1046, 0.12, "square", 0.21, 0.03);
     }
-    const modeLabel = state.mode === "dice" ? "シングルダイス 60秒" : state.mode === "simple" ? "シンプル 60秒" : state.mode === "rank" ? "ランキング" : "ライフ3";
+    const modeLabel = state.mode === "dice" ? "ダイス" : state.mode === "simple" ? "シンプル 120秒" : state.mode === "life1" ? "激ムズライフ1（ランキング）" : state.mode === "rank" ? "ライフ3（ランキング）" : "ライフ3";
     $("result-mode").textContent = modeLabel;
     $("result-score").textContent = likeSimple(state.mode) ? String(value) : value.toLocaleString("ja-JP");
     $("result-unit").textContent = likeSimple(state.mode) ? "正解" : "スコア";
@@ -918,8 +956,8 @@
       item.textContent = line;
       stats.appendChild(item);
     }
-    $("result-rank").hidden = state.mode !== "rank";
-    if (state.mode === "rank") offerRankName(value);
+    $("result-rank").hidden = state.mode !== "rank" && state.mode !== "life1";
+    if (state.mode === "rank" || state.mode === "life1") offerRankName(value, state.mode === "life1" ? "life1" : "rank");
     else rankOffer = null;
     show("result");
     bgmOn = false;
@@ -943,16 +981,21 @@
     $("hud-sub").textContent = likeSimple() ? "パス1" : "Q1";
     $("clock").hidden = !likeSimple();
     $("hearts").hidden = likeSimple();
-    $("clock").textContent = "60.0";
+    $("clock").textContent = "120.0";
     hammerDrag = null;
     placeHammerHome();
     $("hammer").hidden = true;
     $("pass").hidden = !likeSimple();
     $("pass").disabled = false;
     $("pass").textContent = "パス";
-    for (const heart of $("hearts").children) heart.classList.add("on");
+    const heartCap = mode === "life1" ? 1 : 3;
+    const hearts = $("hearts").children;
+    for (let i = 0; i < hearts.length; i += 1) {
+      hearts[i].hidden = i >= heartCap;
+      hearts[i].classList.toggle("on", i < heartCap);
+    }
     $("answer").placeholder = "ひらがな・カタカナ";
-    $("count-label").textContent = mode === "dice" ? "シングルダイス" : mode === "simple" ? "シンプル" : mode === "rank" ? "ランキング" : "ライフ3";
+    $("count-label").textContent = mode === "dice" ? "ダイス" : mode === "simple" ? "シンプル" : mode === "life1" ? "激ムズライフ1（ランキング）" : mode === "rank" ? "ライフ3（ランキング）" : "ライフ3";
     clearedCount = 0;
     birdMark = "";
     const mascot = $("mascot");
@@ -979,7 +1022,7 @@
     const helpOpen = holds.has("help");
     holds.clear();
     if (helpOpen) holds.add("help");
-    state.paused = state.mode === "rank" ? false : holds.size > 0;
+    state.paused = clockLocked(state.mode) ? false : holds.size > 0;
     cancelAnimationFrame(raf);
     pump();
     raf = requestAnimationFrame(frame);
@@ -1081,6 +1124,13 @@
     refreshTitle();
   }
 
+  function toggleBird() {
+    birdOff = !birdOff;
+    storageSet(BIRD_KEY, birdOff ? "0" : "1");
+    updateBirdLabel();
+    if (state) syncMascot();
+  }
+
   function toggleSound() {
     muted = !muted;
     storageSet(MUTE_KEY, muted ? "1" : "0");
@@ -1092,17 +1142,22 @@
   $("start-simple").addEventListener("click", () => startMode("simple"));
   $("start-dice").addEventListener("click", () => startMode("dice"));
   $("start-life").addEventListener("click", () => startMode("life"));
+  $("start-life1").addEventListener("click", () => startMode("life1"));
   $("start-rank").addEventListener("click", () => startMode("rank"));
   let helpFrom = "title";
   function openHelp(from) {
     helpFrom = from;
-    if (from === "play") setHold("help", true);
+    if (from === "play" && !clockLocked()) setHold("help", true);
     show("help");
+  }
+  function openHammerHelp(from) {
+    openHelp(from);
+    $("help-hammer").scrollIntoView({ block: "start" });
   }
   function closeHelp() {
     if (helpFrom === "play") {
       setHold("help", false);
-      if (!state || state.mode !== "rank") lastTs = 0;
+      if (!state || !clockLocked(state.mode)) lastTs = 0;
       show("play");
       if (state) $("answer").focus();
       return;
@@ -1110,7 +1165,9 @@
     show("title");
   }
   $("open-help").addEventListener("click", () => openHelp("title"));
+  $("open-hammer").addEventListener("click", () => openHammerHelp("title"));
   $("play-help").addEventListener("click", () => openHelp("play"));
+  $("play-hammer").addEventListener("click", () => openHammerHelp("play"));
   $("help-back").addEventListener("click", closeHelp);
   $("genre-row").addEventListener("click", (event) => {
     const button = event.target.closest("[data-genre]");
@@ -1139,6 +1196,7 @@
     $("word-text").value = defaultWords();
     updateWordStat();
   });
+  $("toggle-bird").addEventListener("click", toggleBird);
   $("toggle-sound").addEventListener("click", toggleSound);
   $("mute-play").addEventListener("click", toggleSound);
   $("retry").addEventListener("click", () => {
@@ -1149,6 +1207,7 @@
     commitRankName($("rank-name").value);
     abandon();
   });
+  $("skip-rank").addEventListener("click", declineRank);
   $("rank-name-form").addEventListener("submit", (event) => {
     event.preventDefault();
     if (nameComposing) return;
@@ -1163,12 +1222,12 @@
     }
     if (state.phase === "over") return;
     $("quitbar").hidden = false;
-    setHold("quit", true);
+    if (!clockLocked(state.mode)) setHold("quit", true);
   });
   $("quit-no").addEventListener("click", () => {
     $("quitbar").hidden = true;
     setHold("quit", false);
-    if (!state || state.mode !== "rank") lastTs = 0;
+    if (!state || !clockLocked(state.mode)) lastTs = 0;
     $("answer").focus();
   });
   $("quit-yes").addEventListener("click", abandon);
@@ -1236,7 +1295,7 @@
   });
 
   document.addEventListener("visibilitychange", () => {
-    if (!state || state.phase === "over" || state.mode === "rank") return;
+    if (!state || state.phase === "over" || clockLocked(state.mode)) return;
     if (document.hidden) setHold("hide", true);
     else {
       lastTs = 0;
@@ -1257,6 +1316,7 @@
   }
 
   muted = storageGet(MUTE_KEY) === "1";
+  birdOff = storageGet(BIRD_KEY) === "0";
   bgmVolume = readVolume(BGM_KEY, 60);
   seVolume = readVolume(SE_VOL_KEY, 80);
   syncVolumeControls();
