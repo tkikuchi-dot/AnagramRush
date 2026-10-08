@@ -248,7 +248,7 @@ for (let seed = 1; seed <= 40; seed += 1) {
   assert.strictEqual(waiting.active.length, 1);
   assert.strictEqual(waiting.active[0].number, 20);
   assert.strictEqual(waiting.active[0].exclusive, true);
-  const gap = G.spawnIntervalMs(12);
+  const gap = G.spawnIntervalMs(state.correct);
   G.tick(state, gap - 1);
   assert.strictEqual(state.active.length, 1);
   G.tick(state, 1);
@@ -277,6 +277,28 @@ for (let seed = 1; seed <= 40; seed += 1) {
   assert.strictEqual(openBoard(25), 3);
   assert.strictEqual(openBoard(30), 4);
   assert.strictEqual(openBoard(32), 4);
+}
+
+// Each correct answer shortens the wait before the next question.
+{
+  let prev = G.spawnIntervalMs(10);
+  for (let n = 11; n <= 80; n += 1) {
+    const next = G.spawnIntervalMs(n);
+    assert.ok(next < prev);
+    prev = next;
+  }
+  assert.ok(G.spawnIntervalMs(400) >= 650);
+  assert.ok(G.spawnIntervalMs(400) < 700);
+  const state = fresh();
+  state.active = [];
+  state.nextNumber = 15;
+  state.correct = 20;
+  state.phase = "playing";
+  state.spawnAcc = 0;
+  G.tick(state, 0);
+  const before = state.spawnAcc;
+  G.submit(state, state.active[0].parts[0].word);
+  assert.ok(state.spawnAcc < before);
 }
 
 // Boss schedule
@@ -399,21 +421,23 @@ for (let seed = 1; seed <= 40; seed += 1) {
   const state = fresh(PLAIN, "life", 9);
   state.active = [];
   state.nextNumber = 36;
+  state.correct = 30;
   state.phase = "playing";
   state.spawnAcc = 0;
   G.tick(state, 0);
   assert.strictEqual(state.active.length, 1);
   assert.strictEqual(state.active[0].number, 36);
-  advance(state, G.spawnIntervalMs(37));
-  advance(state, G.spawnIntervalMs(38));
-  advance(state, G.spawnIntervalMs(39));
+  advance(state, G.spawnIntervalMs(state.correct));
+  advance(state, G.spawnIntervalMs(state.correct));
+  advance(state, G.spawnIntervalMs(state.correct));
   assert.strictEqual(state.active.length, 4);
-  advance(state, G.spawnIntervalMs(40));
+  advance(state, G.spawnIntervalMs(state.correct));
   assert.strictEqual(state.active.length, 4);
   assert.strictEqual(state.phase, "wait-boss");
   assert.strictEqual(state.nextNumber, 40);
   const lives = state.lives;
-  G.tick(state, 5000);
+  const wait = Math.min.apply(null, state.active.map((puzzle) => puzzle.remainMs));
+  G.tick(state, wait);
   assert.ok(state.lives < lives);
   assert.ok(state.lives > 0);
   assert.notStrictEqual(state.phase, "over");
@@ -560,12 +584,13 @@ for (let seed = 1; seed <= 40; seed += 1) {
   const state = fresh();
   state.active = [];
   state.nextNumber = 104;
+  state.correct = 80;
   state.phase = "playing";
   state.spawnAcc = 0;
   G.tick(state, 0);
-  advance(state, 3700);
-  advance(state, 3700);
-  advance(state, 3700);
+  advance(state, G.spawnIntervalMs(state.correct));
+  advance(state, G.spawnIntervalMs(state.correct));
+  advance(state, G.spawnIntervalMs(state.correct));
   assert.strictEqual(state.active.length, 4);
   assert.ok(state.active.every((puzzle) => !puzzle.exclusive));
 }

@@ -264,9 +264,15 @@
     column-gap: 8px;
     padding: calc(8px + env(safe-area-inset-top)) 8px 4px 12px;
   }
-  #mascot {
+  #mascots {
     position: absolute;
+    inset: 0;
     z-index: 4;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .mascot {
+    position: absolute;
     left: 0;
     top: 0;
     width: 104px;
@@ -274,7 +280,7 @@
     object-fit: contain;
     pointer-events: none;
   }
-  #mascot.hop { animation: mascot-hop 0.55s ease; }
+  .mascot.hop { animation: mascot-hop 0.55s ease; }
   @keyframes mascot-hop {
     0% { transform: translateY(8px) scale(0.72); }
     55% { transform: translateY(-3px) scale(1.06); }
@@ -580,12 +586,25 @@
     padding: 0;
   }
   .lengths li {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
     border: 1px solid var(--line);
     border-radius: 2px;
-    padding: 1px 7px;
+    padding: 3px 8px 2px;
     font-size: 12px;
     font-weight: 900;
   }
+  .len-genre {
+    color: var(--gold);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    line-height: 1.1;
+  }
+  .len-count { display: inline-flex; align-items: center; gap: 2px; }
+  .board.grid .len-genre, .board.pair .len-genre, .board.pyramid .len-genre { font-size: 10px; }
+  .card.span .len-genre { font-size: 15px; letter-spacing: 0.08em; }
   .lengths .done { background: rgba(93, 255, 194, 0.16); color: var(--green); border-color: var(--green); }
   .lengths b, .first-letter b { color: #041018; background: var(--gold); }
   .lengths b {
@@ -953,7 +972,7 @@
       <h2>激ムズ</h2>
       <ul>
         <li>ライフは1つ。時間切れでライフが減ると、そこで終わり。</li>
-        <li>最初からライフ3の終盤。同時に4問まで出て、追加も速い。</li>
+        <li>最初からライフ3の終盤。同時に4問まで出て、正解が増えるほど追加が速くなる。</li>
         <li>文字の長さも、ボスの混ざり方も、最初からいちばん難しい状態。</li>
         <li>文字数とジャンルは、タイトルで選んだもの。速さでも連続でも増える。</li>
       </ul>
@@ -962,11 +981,12 @@
         <li>ライフは3つ。1問は15秒。時間切れでライフが1つ減る。</li>
         <li>最初の10問は1問ずつ出る。</li>
         <li>10問が終わると同時に2問まで。20問が終わると3問まで。30問が終わると4問まで。</li>
+        <li>正解が増えるほど、次の問題が出るまでの間隔は短くなっていく。</li>
         <li>2問は横に2つ。3問は上に1つ、下に2つ。4問は2×2。</li>
         <li>答えは下の欄ひとつ。出ている問題のどれかに当たれば消える。</li>
         <li>10問目と20問目はボス。2語が混ざった問題が、画面に1問だけ出る（25秒）。</li>
         <li>30問目のボスは3語（35秒）。40問目のボスは4語（45秒）。</li>
-        <li>ボスは単語ごとの文字数が見える。1語答えると、その文字が消える。</li>
+        <li>ボスは単語ごとの文字数が見える。文字数の上に、その単語のジャンルが出る。1語答えると、その文字が消える。</li>
         <li>50問を超えると、ボスはほかの問題に混ざって出る。</li>
         <li>50問に到達すると、BGMが変わる。</li>
         <li>制限時間の3分の1で先頭の1文字、3分の2で2文字目が出る。</li>
@@ -980,7 +1000,7 @@
         <li>ジャンルは哺乳類、魚類、料理、ポケモン、ことわざから、いくつでも選べる。ポケモンとことわざはランキングに出ない。</li>
         <li>ランキングの4モードは、哺乳類、魚類、料理の3〜9文字。</li>
         <li>別解がある問題は、最初から先頭の1文字が見える。</li>
-        <li>10問正解するごとに、空いているところに鳥が出る。ボタンや文字には重ならない。50問目からはサングラスの鳥になる。タイトルの鳥ボタンで止められる。</li>
+        <li>10問正解するごとに、鳥が1羽増える。何羽でも増え続ける。空いているところに出て、ボタンや文字には重ならない。50問目からはサングラスの鳥になる。タイトルの鳥ボタンで止められる。</li>
       </ul>
       <h2>シングル（ランキング）</h2>
       <ul>
@@ -1009,7 +1029,7 @@
       <h2>激ムズ（ランキング）</h2>
       <ul>
         <li>ライフは1つ。時間切れでライフが減ると、そこで終わり。</li>
-        <li>最初からライフ3の終盤。同時に4問まで出て、追加も速い。</li>
+        <li>最初からライフ3の終盤。同時に4問まで出て、正解が増えるほど追加が速くなる。</li>
         <li>文字の長さも、ボスの混ざり方も、最初からいちばん難しい状態。</li>
         <li>ジャンルは哺乳類、魚類、料理。文字数は3〜9。速さで増える。連続では増えない。</li>
         <li>遊び方や中断の確認を開いても、画面を離れても、タイマーは止まらない。</li>
@@ -1050,7 +1070,7 @@
   </section>
 
   <section id="screen-play" class="screen play" hidden>
-    <img id="mascot" alt="" hidden>
+    <div id="mascots"></div>
     <div class="play-frame">
       <header class="hud">
         <button type="button" id="quit" class="textbtn">やめる</button>

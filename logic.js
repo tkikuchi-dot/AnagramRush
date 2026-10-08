@@ -253,12 +253,16 @@
     return pickBossMix(questionNumber, rng);
   }
 
-  function spawnIntervalMs(upcoming) {
-    if (upcoming >= 36) return 3700;
-    if (upcoming >= 26) return 4300;
-    if (upcoming >= 18) return 5200;
-    if (upcoming >= 10) return 7000;
-    return 9000;
+  function spawnPace(state) {
+    return state.correct + (lateGame(state.mode) ? 35 : 0);
+  }
+
+  function spawnIntervalMs(correct) {
+    const n = Math.max(0, correct | 0);
+    if (n < 10) return 9000;
+    const floor = 650;
+    const start = 3600;
+    return Math.round(floor + (start - floor) * Math.pow(0.965, n - 10));
   }
 
   function mulberry32(seed) {
@@ -632,7 +636,7 @@
     }
     if (likeSimple(state.mode)) spawnSimple(state);
     else spawnUpcoming(state);
-    if (lateGame(state.mode)) state.spawnAcc = spawnIntervalMs(paceNumber(state));
+    if (lateGame(state.mode)) state.spawnAcc = spawnIntervalMs(spawnPace(state));
     return state;
   }
 
@@ -654,7 +658,7 @@
 
   function noteSpawn(state, result) {
     if (result === "spawned" && state.phase === "playing") {
-      state.spawnAcc = spawnIntervalMs(paceNumber(state));
+      state.spawnAcc = spawnIntervalMs(spawnPace(state));
     } else if (result === "blocked") {
       state.spawnAcc = 0;
     }
@@ -671,6 +675,8 @@
     const gained = likeSimple(state.mode) ? 1 : awardPoints(state, puzzle, part);
     state.score += gained;
     state.correct += 1;
+    const pace = spawnIntervalMs(spawnPace(state));
+    if (state.spawnAcc > pace) state.spawnAcc = pace;
     state.combo += 1;
     if (state.combo > state.maxCombo) state.maxCombo = state.combo;
     const remainParts = puzzle.parts.filter((item) => !item.solved);

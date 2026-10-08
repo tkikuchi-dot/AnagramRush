@@ -65,8 +65,7 @@
   let nameComposing = false;
   let hammerDrag = null;
   let clearedCount = 0;
-  let birdMark = "";
-  let birdSpot = null;
+  let birdNodes = [];
   const BGM_FILES = {
     simple: "BGM/\u30b7\u30f3\u30b0\u30eb\u30e2\u30fc\u30c9.mp3",
     dice: "BGM/\u30c0\u30a4\u30b9\u30e2\u30fc\u30c9.mp3",
@@ -682,7 +681,7 @@
     card.appendChild(head);
 
     const useDice = state.mode === "dice" || state.mode === "dicerank";
-    const tag = genreTag(puzzle);
+    const tag = puzzle.boss ? null : genreTag(puzzle);
     if (useDice) appendDice(card, puzzle, tag);
     const tiles = document.createElement("div");
     tiles.className = "tiles";
@@ -705,15 +704,22 @@
       list.className = "lengths";
       for (const part of puzzle.parts) {
         const item = document.createElement("li");
-        if (part.solved) {
-          item.className = "done";
-          item.textContent = part.word;
-        } else if (part.shown) {
-          appendHintMarks(item, part);
-          item.appendChild(document.createTextNode(part.chars.length + "文字"));
-        } else {
-          item.textContent = part.chars.length + "文字";
+        if (part.solved) item.className = "done";
+        const label = GENRE_LABEL[part.genre];
+        if (label) {
+          const genre = document.createElement("span");
+          genre.className = "len-genre";
+          genre.textContent = label;
+          item.appendChild(genre);
         }
+        const count = document.createElement("span");
+        count.className = "len-count";
+        if (part.solved) count.textContent = part.word;
+        else if (part.shown) {
+          appendHintMarks(count, part);
+          count.appendChild(document.createTextNode(part.chars.length + "文字"));
+        } else count.textContent = part.chars.length + "文字";
+        item.appendChild(count);
         list.appendChild(item);
       }
       card.appendChild(list);
@@ -876,7 +882,7 @@
     const boxes = [];
     const nodes = $("screen-play").querySelectorAll("button, input, #hud-score, #hud-sub, #clock, #hearts, #reveal, #banner, #milestone, #quitbar, .hud-links, .card header, .tile, .dice, .genre-tag, .lengths, .boss-note, .badge, .time, .first-letter, .bar");
     for (const node of nodes) {
-      if (node.id === "mascot") continue;
+      if (node.classList.contains("mascot")) continue;
       const box = shownBox(node);
       if (box) boxes.push(box);
     }
@@ -892,75 +898,120 @@
     if (!width || !height) return null;
     return { left, top, right: left + width, bottom: top + height };
   }
-  function placeBird(forceNew) {
-    const el = $("mascot");
-    const host = $("screen-play");
-    const hostRect = host.getBoundingClientRect();
-    const obstacles = birdObstacles();
-    const gap = 8;
-    const current = birdRect(el, host);
-    if (!forceNew && current && !obstacles.some((box) => boxesOverlap(current, box, gap))) return;
-    const spots = [];
-    let chosenScale = 0;
-    for (let scale = 1; scale >= 0.5; scale -= 0.1) {
+  function findBirdSpots(hostRect, blocked, gap) {
+    for (let scale = 1; scale >= 0.35; scale -= 0.05) {
       const width = 104 * scale;
       const height = 78 * scale;
       const found = [];
       for (let y = hostRect.top + 4; y + height <= hostRect.bottom - 4; y += 14) {
         for (let x = hostRect.left + 4; x + width <= hostRect.right - 4; x += 14) {
           const rect = { left: x, top: y, right: x + width, bottom: y + height };
-          if (obstacles.some((box) => boxesOverlap(rect, box, gap))) continue;
+          if (blocked.some((box) => boxesOverlap(rect, box, gap))) continue;
           found.push({ x: x - hostRect.left, y: y - hostRect.top, scale: scale });
         }
       }
-      if (!found.length) continue;
-      spots.push.apply(spots, found);
-      break;
+      if (found.length) return found;
     }
-    if (!spots.length) {
-      if (!current || obstacles.some((box) => boxesOverlap(current, box, gap))) el.hidden = true;
+    return [];
+  }
+  function otherBirdBoxes(bird, host) {
+    const boxes = [];
+    for (const other of birdNodes) {
+      if (other === bird) continue;
+      const box = birdRect(other.el, host);
+      if (box) boxes.push(box);
+    }
+    return boxes;
+  }
+  function paintBird(bird, spot) {
+    bird.spot = spot;
+    bird.el.hidden = false;
+    bird.el.style.left = spot.x + "px";
+    bird.el.style.top = spot.y + "px";
+    bird.el.style.width = (104 * spot.scale) + "px";
+    bird.el.style.height = (78 * spot.scale) + "px";
+  }
+  function placeBird(bird, forceNew) {
+    const el = bird.el;
+    const host = $("mascots");
+    const hostRect = host.getBoundingClientRect();
+    if (hostRect.width < 1 || hostRect.height < 1) return;
+    const gap = 8;
+    const ui = birdObstacles();
+    const current = birdRect(el, host);
+    if (!forceNew && current && !ui.some((box) => boxesOverlap(current, box, gap))) return;
+    const anchors = [];
+    for (const other of birdNodes) {
+      if (other !== bird && other.spot) anchors.push(other.spot);
+    }
+    let pool = findBirdSpots(hostRect, ui.concat(otherBirdBoxes(bird, host)), gap);
+    if (!pool.length) pool = findBirdSpots(hostRect, ui, gap);
+    if (!pool.length && anchors.length) {
+      const anchor = anchors[anchors.length - 1];
+      const shift = (birdNodes.indexOf(bird) % 6) * 12;
+      const piled = {
+        x: Math.max(4, Math.min(anchor.x + shift, hostRect.width - 104 * anchor.scale - 4)),
+        y: Math.max(4, Math.min(anchor.y + shift, hostRect.height - 78 * anchor.scale - 4)),
+        scale: anchor.scale,
+      };
+      const rect = {
+        left: hostRect.left + piled.x,
+        top: hostRect.top + piled.y,
+        right: hostRect.left + piled.x + 104 * piled.scale,
+        bottom: hostRect.top + piled.y + 78 * piled.scale,
+      };
+      paintBird(bird, ui.some((box) => boxesOverlap(rect, box, gap)) ? anchor : piled);
       return;
     }
-    let pool = spots;
-    if (forceNew && birdSpot && spots.length > 1) {
-      const away = spots.filter((spot) => Math.abs(spot.x - birdSpot.x) > 48 || Math.abs(spot.y - birdSpot.y) > 48);
-      if (away.length) pool = away;
+    if (!pool.length) {
+      if (!current || ui.some((box) => boxesOverlap(current, box, gap))) el.hidden = true;
+      return;
     }
-    const spot = pool[Math.floor(Math.random() * pool.length)];
-    birdSpot = spot;
-    el.style.left = spot.x + "px";
-    el.style.top = spot.y + "px";
-    el.style.width = (104 * spot.scale) + "px";
-    el.style.height = (78 * spot.scale) + "px";
+    let choices = pool;
+    if (forceNew && anchors.length && pool.length > 1) {
+      const away = pool.filter((spot) => anchors.every((anchor) => Math.abs(spot.x - anchor.x) > 48 || Math.abs(spot.y - anchor.y) > 48));
+      if (away.length) choices = away;
+    }
+    paintBird(bird, choices[Math.floor(Math.random() * choices.length)]);
+  }
+  function applyBirdFile(el, file) {
+    if (el.dataset.file === file) return;
+    el.dataset.file = file;
+    el.src = encodeURI(file);
+    el.style.objectViewBox = file === BIRD_AFTER50 ? "xywh(6% 33% 83% 67%)" : "xywh(9% 8% 79% 92%)";
+  }
+  function clearBirds() {
+    birdNodes = [];
+    $("mascots").replaceChildren();
   }
   function syncMascot() {
-    const el = $("mascot");
     if (birdOff || !state || state.phase === "over") {
-      el.hidden = true;
+      if (birdNodes.length) clearBirds();
+      return;
+    }
+    const count = Math.floor(clearedCount / 10);
+    if (count < 1) {
+      if (birdNodes.length) clearBirds();
       return;
     }
     const reached = Math.max(0, state.nextNumber - 1);
-    const file = reached >= 50 ? BIRD_AFTER50 : clearedCount >= 10 ? BIRD_EVERY : "";
-    if (!file) {
-      el.hidden = true;
-      birdMark = "";
-      birdSpot = null;
-      return;
+    const file = reached >= 50 ? BIRD_AFTER50 : BIRD_EVERY;
+    const host = $("mascots");
+    while (birdNodes.length < count) {
+      const el = document.createElement("img");
+      el.className = "mascot";
+      el.alt = "";
+      host.appendChild(el);
+      const bird = { el: el, spot: null };
+      birdNodes.push(bird);
+      applyBirdFile(el, file);
+      placeBird(bird, true);
+      el.classList.remove("hop");
+      void el.offsetWidth;
+      el.classList.add("hop");
     }
-    if (el.dataset.file !== file) {
-      el.dataset.file = file;
-      el.src = encodeURI(file);
-      el.style.objectViewBox = file === BIRD_AFTER50 ? "xywh(6% 33% 83% 67%)" : "xywh(9% 8% 79% 92%)";
-    }
-    el.hidden = false;
-    const mark = file + ":" + (reached >= 50 ? Math.floor(reached / 10) : Math.floor(clearedCount / 10));
-    const fresh = mark !== birdMark;
-    placeBird(fresh);
-    if (!fresh) return;
-    birdMark = mark;
-    el.classList.remove("hop");
-    void el.offsetWidth;
-    el.classList.add("hop");
+    for (const bird of birdNodes) applyBirdFile(bird.el, file);
+    for (const bird of birdNodes) placeBird(bird, false);
   }
 
   function renderHud() {
@@ -1165,12 +1216,7 @@
     $("answer").placeholder = "ひらがな・カタカナ";
     $("count-label").textContent = modeTitle(mode);
     clearedCount = 0;
-    birdMark = "";
-    birdSpot = null;
-    const mascot = $("mascot");
-    mascot.hidden = true;
-    mascot.classList.remove("hop");
-    delete mascot.dataset.file;
+    clearBirds();
   }
 
   function begin(token) {
