@@ -3,13 +3,16 @@
 
   const G = window.AnagramGame;
   const WORDS_KEY = "anagram.words.v1";
-  const GENRE_KEY = "anagram.genre.v1";
   const GENRES_KEY = "anagram.genres.v2";
-  const GENRE_IDS = ["mammal", "fish", "food", "pokemon"];
+  const GENRE_IDS = ["mammal", "fish", "food", "pokemon", "proverb"];
   const RANK_GENRES = ["mammal", "fish", "food"];
   const LEVEL_KEY = "anagram.level.v1";
+  const LEN_MIN_KEY = "anagram.lenmin.v1";
+  const LEN_MAX_KEY = "anagram.lenmax.v1";
   const RANK_KEY = "anagram.rank.v1";
   const LIFE1_RANK_KEY = "anagram.rank.life1.v1";
+  const DICE_RANK_KEY = "anagram.rank.dice.v1";
+  const SIMPLE_RANK_KEY = "anagram.rank.simple.v1";
   const BEST_KEY = "anagram.best.v1";
   const MUTE_KEY = "anagram.mute.v1";
   const BIRD_KEY = "anagram.bird.v1";
@@ -17,19 +20,34 @@
   const SE_VOL_KEY = "anagram.se.v1";
   const RANK_URL = "https://anagram-2c857-default-rtdb.asia-southeast1.firebasedatabase.app/ranking.json";
   const LIFE1_RANK_URL = "https://anagram-2c857-default-rtdb.asia-southeast1.firebasedatabase.app/rankingLife1.json";
+  const DICE_RANK_URL = "https://anagram-2c857-default-rtdb.asia-southeast1.firebasedatabase.app/rankingDice.json";
+  const SIMPLE_RANK_URL = "https://anagram-2c857-default-rtdb.asia-southeast1.firebasedatabase.app/rankingSimple.json";
   const DEFAULT_RANK_NAME = "とくめいきぼう君";
   const RANK_NAME_MAX = 12;
-  const GENRE_LABEL = { mammal: "哺乳類", fish: "魚類", food: "料理", pokemon: "ポケモン" };
-  const LEVEL_LABEL = { easy: "イージー", normal: "ノーマル", hard: "ハード" };
-  const LEVEL_RANGE = { easy: [3, 6], normal: [3, 8], hard: [4, 9] };
+  const GENRE_LABEL = { mammal: "哺乳類", fish: "魚類", food: "料理", pokemon: "ポケモン", proverb: "ことわざ" };
+  const RANK_RANGE = [3, 9];
   const $ = (id) => document.getElementById(id);
   function likeSimple(name) {
     const current = name == null ? mode : name;
-    return current === "simple";
+    return current === "simple" || current === "simplerank";
   }
   function clockLocked(name) {
     const current = name == null ? (state ? state.mode : mode) : name;
-    return current === "rank" || current === "life1";
+    return current === "rank" || current === "life1" || current === "dicerank" || current === "simplerank";
+  }
+  function oneLife(name) {
+    const current = name == null ? (state ? state.mode : mode) : name;
+    return current === "life1" || current === "extreme";
+  }
+  function modeTitle(name) {
+    if (name === "dice") return "ダイス";
+    if (name === "dicerank") return "ダイス（ランキング）";
+    if (name === "simple") return "シングル";
+    if (name === "simplerank") return "シングル（ランキング）";
+    if (name === "extreme") return "激ムズ";
+    if (name === "life1") return "激ムズ（ランキング）";
+    if (name === "rank") return "ライフ3（ランキング）";
+    return "ライフ3";
   }
 
   let state = null;
@@ -48,6 +66,7 @@
   let hammerDrag = null;
   let clearedCount = 0;
   let birdMark = "";
+  let birdSpot = null;
   const BGM_FILES = {
     simple: "BGM/\u30b7\u30f3\u30b0\u30eb\u30e2\u30fc\u30c9.mp3",
     dice: "BGM/\u30c0\u30a4\u30b9\u30e2\u30fc\u30c9.mp3",
@@ -95,25 +114,89 @@
         if (Array.isArray(parsed)) ids = parsed.filter((id) => GENRE_IDS.indexOf(id) >= 0);
       } catch (err) { /* fall through */ }
     }
-    if (!ids) {
-      const old = storageGet(GENRE_KEY);
-      ids = old === "mammal" || old === "fish" || old === "food" ? [old] : RANK_GENRES.slice();
-    }
-    if (!ids.length) ids = RANK_GENRES.slice();
+    if (!ids || !ids.length) ids = RANK_GENRES.slice();
     return GENRE_IDS.filter((id) => ids.indexOf(id) >= 0);
   }
-  function selectedLevel() {
-    const raw = storageGet(LEVEL_KEY);
-    return raw === "easy" || raw === "hard" ? raw : "normal";
+  function listLengths(text) {
+    const found = [];
+    const seen = new Set();
+    const prepared = G.prepareDict(text || "");
+    for (const entry of prepared.dict) {
+      const length = entry.chars.length;
+      if (seen.has(length)) continue;
+      seen.add(length);
+      found.push(length);
+    }
+    found.sort((a, b) => a - b);
+    return found;
+  }
+  function availableLengths() {
+    const seen = new Set();
+    for (const id of selectedGenres()) {
+      for (const length of listLengths(genreSource(id))) seen.add(length);
+    }
+    for (const length of listLengths(storageGet(WORDS_KEY) || "")) seen.add(length);
+    const found = Array.from(seen).sort((a, b) => a - b);
+    return found.length ? found : [G.RULES.minChars];
+  }
+  function nearestLength(choices, value, fallback) {
+    const n = Number(value);
+    if (choices.indexOf(n) >= 0) return n;
+    if (!Number.isInteger(n)) return fallback;
+    let best = choices[0];
+    let dist = Math.abs(choices[0] - n);
+    for (const choice of choices) {
+      const gap = Math.abs(choice - n);
+      if (gap < dist) {
+        best = choice;
+        dist = gap;
+      }
+    }
+    return best;
+  }
+  function selectedLength() {
+    const choices = availableLengths();
+    const low = choices[0];
+    const high = choices[choices.length - 1];
+    let min = low;
+    let max = high;
+    if (storageGet(LEN_MIN_KEY) == null && storageGet(LEN_MAX_KEY) == null) {
+      const legacy = storageGet(LEVEL_KEY);
+      if (legacy === "easy") max = nearestLength(choices, 6, high);
+      else if (legacy === "hard") {
+        min = nearestLength(choices, 4, low);
+        max = nearestLength(choices, 9, high);
+      }
+    } else {
+      min = nearestLength(choices, storageGet(LEN_MIN_KEY), low);
+      max = nearestLength(choices, storageGet(LEN_MAX_KEY), high);
+    }
+    if (min > max) max = min;
+    return [min, max];
+  }
+  function fillLengthSelect(select, choices, value) {
+    select.replaceChildren();
+    for (const n of choices) {
+      const option = document.createElement("option");
+      option.value = String(n);
+      option.textContent = n + "文字";
+      select.appendChild(option);
+    }
+    select.value = String(value);
+  }
+  function saveLength(min, max) {
+    if (min > max) max = min;
+    storageSet(LEN_MIN_KEY, String(min));
+    storageSet(LEN_MAX_KEY, String(max));
   }
   function genreSource(id) {
     const genres = window.ANAGRAM_GENRES || {};
     return genres[id] || "";
   }
   function playItems(forRank, mode) {
-    const fixed = forRank || mode === "life1";
+    const fixed = forRank || mode === "life1" || mode === "dicerank" || mode === "simplerank";
     const ids = fixed ? RANK_GENRES : selectedGenres();
-    const range = mode === "life1" ? LEVEL_RANGE.hard : forRank ? [3, 9] : LEVEL_RANGE[selectedLevel()];
+    const range = fixed ? RANK_RANGE : selectedLength();
     const items = [];
     const pushLines = (text, genre) => {
       for (const line of String(text || "").split(/\r?\n/)) {
@@ -136,10 +219,13 @@
         dice: Number(parsed.dice) || 0,
         life: Number(parsed.life) || 0,
         life1: Number(parsed.life1) || 0,
+        extreme: Number(parsed.extreme) || 0,
         rank: Number(parsed.rank) || 0,
+        dicerank: Number(parsed.dicerank) || 0,
+        simplerank: Number(parsed.simplerank) || 0,
       };
     } catch (err) {
-      return { simple: 0, dice: 0, life: 0, life1: 0, rank: 0 };
+      return { simple: 0, dice: 0, life: 0, life1: 0, extreme: 0, rank: 0, dicerank: 0, simplerank: 0 };
     }
   }
   function saveBest(best) {
@@ -147,7 +233,7 @@
   }
 
   function show(name) {
-    for (const id of ["title", "help", "words", "play", "result"]) {
+    for (const id of ["title", "help", "tips", "words", "play", "result"]) {
       $("screen-" + id).hidden = id !== name;
     }
   }
@@ -192,9 +278,7 @@
   }
 
   function updateSoundLabel() {
-    const label = muted ? "音オフ" : "音オン";
-    $("toggle-sound").textContent = label;
-    $("mute-play").textContent = label;
+    $("mute-play").textContent = muted ? "音オフ" : "音オン";
   }
 
   function updateBirdLabel() {
@@ -208,6 +292,7 @@
     $("best-simple").textContent = best.simple ? "BEST " + best.simple : "BEST —";
     $("best-dice").textContent = best.dice ? "BEST " + best.dice : "BEST —";
     $("best-life").textContent = best.life ? "BEST " + best.life.toLocaleString("ja-JP") : "BEST —";
+    $("best-extreme").textContent = best.extreme ? "BEST " + best.extreme.toLocaleString("ja-JP") : "BEST —";
   }
 
   function cleanRankName(raw) {
@@ -236,9 +321,16 @@
     return entries.length < 10 || score >= entries[entries.length - 1].score;
   }
   function rankStore(board) {
-    return board === "life1"
-      ? { url: LIFE1_RANK_URL, key: LIFE1_RANK_KEY, label: "激ムズライフ1（ランキング）", list: "title-life1-rank", note: "life1-rank-note", best: "best-life1" }
-      : { url: RANK_URL, key: RANK_KEY, label: "ライフ3（ランキング）", list: "title-rank", note: "rank-note", best: "best-rank" };
+    if (board === "life1") {
+      return { url: LIFE1_RANK_URL, key: LIFE1_RANK_KEY, label: "激ムズ（ランキング）", list: "title-life1-rank", note: "life1-rank-note", best: "best-life1" };
+    }
+    if (board === "dicerank") {
+      return { url: DICE_RANK_URL, key: DICE_RANK_KEY, label: "ダイス（ランキング）", list: "title-dice-rank", note: "dice-rank-note", best: "best-dicerank" };
+    }
+    if (board === "simplerank") {
+      return { url: SIMPLE_RANK_URL, key: SIMPLE_RANK_KEY, label: "シングル（ランキング）", list: "title-simple-rank", note: "simple-rank-note", best: "best-simplerank" };
+    }
+    return { url: RANK_URL, key: RANK_KEY, label: "ライフ3（ランキング）", list: "title-rank", note: "rank-note", best: "best-rank" };
   }
   function loadLocalRank(board) {
     try {
@@ -285,7 +377,7 @@
     }).then(boardFromFirebase);
   }
   function refreshRankBoard() {
-    ["rank", "life1"].forEach((board) => {
+    ["simplerank", "dicerank", "rank", "life1"].forEach((board) => {
       const store = rankStore(board);
       loadSharedRank(board).then((scores) => {
         renderRank(store.list, store.note, scores, true);
@@ -344,30 +436,31 @@
 
   function refreshTitle() {
     const genres = selectedGenres();
-    const level = selectedLevel();
+    const lengths = availableLengths();
+    const range = selectedLength();
+    fillLengthSelect($("len-min"), lengths, range[0]);
+    fillLengthSelect($("len-max"), lengths, range[1]);
     for (const button of document.querySelectorAll("[data-genre]")) {
       const on = genres.indexOf(button.dataset.genre) >= 0;
       button.classList.toggle("on", on);
       button.setAttribute("aria-pressed", on ? "true" : "false");
     }
-    for (const button of document.querySelectorAll("[data-level]")) {
-      const on = button.dataset.level === level;
-      button.classList.toggle("on", on);
-      button.setAttribute("aria-pressed", on ? "true" : "false");
-    }
     const prepared = G.prepareDict(playItems(false));
-    const range = LEVEL_RANGE[level];
     const custom = storageGet(WORDS_KEY);
     const customCount = custom ? G.prepareDict(playItems(false).filter((item) => !item.genre)).dict.length : 0;
     const genreLabel = genres.map((id) => GENRE_LABEL[id]).join("・");
-    $("word-line").textContent = LEVEL_LABEL[level] + "　" + range[0] + "〜" + range[1] + "文字　" + genreLabel + " " + prepared.dict.length + "語" + (customCount ? "（登録 " + customCount + "）" : "");
+    const lengthLabel = range[0] === range[1] ? range[0] + "文字" : range[0] + "〜" + range[1] + "文字";
+    $("word-line").textContent = lengthLabel + "　" + genreLabel + " " + prepared.dict.length + "語" + (customCount ? "（登録 " + customCount + "）" : "");
     $("life-note").hidden = prepared.dict.length >= 4;
     $("start-simple").disabled = prepared.dict.length < 1;
     $("start-dice").disabled = G.prepareDict(playItems(false, "dice")).dict.length < 1;
     $("start-life").disabled = prepared.dict.length < 1;
-    $("start-life1").disabled = G.prepareDict(playItems(false, "life1")).dict.length < 1;
+    $("start-extreme").disabled = prepared.dict.length < 1;
     const ranked = G.prepareDict(playItems(true));
+    $("start-simplerank").disabled = ranked.dict.length < 1;
+    $("start-dicerank").disabled = ranked.dict.length < 1;
     $("start-rank").disabled = ranked.dict.length < 1;
+    $("start-life1").disabled = ranked.dict.length < 1;
     updateBests();
     updateSoundLabel();
     updateBirdLabel();
@@ -447,9 +540,9 @@
   function trackForState() {
     const reached = state ? Math.max(0, state.nextNumber - 1) : 0;
     const current = state ? state.mode : mode;
-    if (current === "dice") return BGM_FILES.dice;
-    if (current === "life1") return BGM_FILES.after50;
-    if (current === "simple") return BGM_FILES.simple;
+    if (current === "dice" || current === "dicerank") return BGM_FILES.dice;
+    if (current === "life1" || current === "extreme") return BGM_FILES.after50;
+    if (likeSimple(current)) return BGM_FILES.simple;
     if (reached >= 50) return BGM_FILES.after50;
     return BGM_FILES[current] || BGM_FILES.life;
   }
@@ -588,7 +681,7 @@
     head.appendChild(time);
     card.appendChild(head);
 
-    const useDice = state.mode === "dice";
+    const useDice = state.mode === "dice" || state.mode === "dicerank";
     const tag = genreTag(puzzle);
     if (useDice) appendDice(card, puzzle, tag);
     const tiles = document.createElement("div");
@@ -768,6 +861,78 @@
     }
   }
 
+  function shownBox(el) {
+    if (!el || el.hidden || el.closest("[hidden]")) return null;
+    const style = getComputedStyle(el);
+    if (style.display === "none" || style.visibility === "hidden") return null;
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return null;
+    return rect;
+  }
+  function boxesOverlap(a, b, gap) {
+    return a.left < b.right + gap && a.right > b.left - gap && a.top < b.bottom + gap && a.bottom > b.top - gap;
+  }
+  function birdObstacles() {
+    const boxes = [];
+    const nodes = $("screen-play").querySelectorAll("button, input, #hud-score, #hud-sub, #clock, #hearts, #reveal, #banner, #milestone, #quitbar, .hud-links, .card header, .tile, .dice, .genre-tag, .lengths, .boss-note, .badge, .time, .first-letter, .bar");
+    for (const node of nodes) {
+      if (node.id === "mascot") continue;
+      const box = shownBox(node);
+      if (box) boxes.push(box);
+    }
+    return boxes;
+  }
+  function birdRect(el, host) {
+    if (!el.style.left || !el.style.top) return null;
+    const hostRect = host.getBoundingClientRect();
+    const left = hostRect.left + parseFloat(el.style.left);
+    const top = hostRect.top + parseFloat(el.style.top);
+    const width = el.offsetWidth;
+    const height = el.offsetHeight;
+    if (!width || !height) return null;
+    return { left, top, right: left + width, bottom: top + height };
+  }
+  function placeBird(forceNew) {
+    const el = $("mascot");
+    const host = $("screen-play");
+    const hostRect = host.getBoundingClientRect();
+    const obstacles = birdObstacles();
+    const gap = 8;
+    const current = birdRect(el, host);
+    if (!forceNew && current && !obstacles.some((box) => boxesOverlap(current, box, gap))) return;
+    const spots = [];
+    let chosenScale = 0;
+    for (let scale = 1; scale >= 0.5; scale -= 0.1) {
+      const width = 104 * scale;
+      const height = 78 * scale;
+      const found = [];
+      for (let y = hostRect.top + 4; y + height <= hostRect.bottom - 4; y += 14) {
+        for (let x = hostRect.left + 4; x + width <= hostRect.right - 4; x += 14) {
+          const rect = { left: x, top: y, right: x + width, bottom: y + height };
+          if (obstacles.some((box) => boxesOverlap(rect, box, gap))) continue;
+          found.push({ x: x - hostRect.left, y: y - hostRect.top, scale: scale });
+        }
+      }
+      if (!found.length) continue;
+      spots.push.apply(spots, found);
+      break;
+    }
+    if (!spots.length) {
+      if (!current || obstacles.some((box) => boxesOverlap(current, box, gap))) el.hidden = true;
+      return;
+    }
+    let pool = spots;
+    if (forceNew && birdSpot && spots.length > 1) {
+      const away = spots.filter((spot) => Math.abs(spot.x - birdSpot.x) > 48 || Math.abs(spot.y - birdSpot.y) > 48);
+      if (away.length) pool = away;
+    }
+    const spot = pool[Math.floor(Math.random() * pool.length)];
+    birdSpot = spot;
+    el.style.left = spot.x + "px";
+    el.style.top = spot.y + "px";
+    el.style.width = (104 * spot.scale) + "px";
+    el.style.height = (78 * spot.scale) + "px";
+  }
   function syncMascot() {
     const el = $("mascot");
     if (birdOff || !state || state.phase === "over") {
@@ -779,6 +944,7 @@
     if (!file) {
       el.hidden = true;
       birdMark = "";
+      birdSpot = null;
       return;
     }
     if (el.dataset.file !== file) {
@@ -788,7 +954,9 @@
     }
     el.hidden = false;
     const mark = file + ":" + (reached >= 50 ? Math.floor(reached / 10) : Math.floor(clearedCount / 10));
-    if (mark === birdMark) return;
+    const fresh = mark !== birdMark;
+    placeBird(fresh);
+    if (!fresh) return;
     birdMark = mark;
     el.classList.remove("hop");
     void el.offsetWidth;
@@ -804,18 +972,18 @@
     if (likeSimple(state.mode)) {
       $("hud-score-value").textContent = String(state.score);
       $("clock").textContent = (Math.max(0, state.simpleRemainMs) / 1000).toFixed(1);
-      const combo = state.combo >= 2 ? "  " + state.combo + "連続" : "";
+      const combo = clockLocked(state.mode) || state.combo < 2 ? "" : "  " + state.combo + "連続";
       $("hud-sub").textContent = (state.passesLeft ? "パス1" : "パス済") + combo;
       $("pass").disabled = state.passesLeft <= 0;
     } else {
       $("hud-score-value").textContent = state.score.toLocaleString("ja-JP");
       const hearts = $("hearts").children;
-      const heartCap = state.mode === "life1" ? 1 : 3;
+      const heartCap = oneLife(state.mode) ? 1 : 3;
       for (let i = 0; i < hearts.length; i += 1) {
         hearts[i].hidden = i >= heartCap;
         hearts[i].classList.toggle("on", i < state.lives);
       }
-      const combo = state.mode === "rank" || state.combo < 2 ? "" : "  " + state.combo + "連続";
+      const combo = clockLocked(state.mode) || state.combo < 2 ? "" : "  " + state.combo + "連続";
       $("hud-sub").textContent = "Q" + Math.max(1, state.nextNumber - 1) + combo;
     }
     $("banner").hidden = state.phase !== "wait-boss";
@@ -918,7 +1086,7 @@
       tone(784, 0.06, "square", 0.14, 0.03);
       tone(1046, 0.12, "square", 0.21, 0.03);
     }
-    const modeLabel = state.mode === "dice" ? "ダイス" : state.mode === "simple" ? "シンプル 120秒" : state.mode === "life1" ? "激ムズライフ1（ランキング）" : state.mode === "rank" ? "ライフ3（ランキング）" : "ライフ3";
+    const modeLabel = modeTitle(state.mode) + (likeSimple(state.mode) ? " 120秒" : "");
     $("result-mode").textContent = modeLabel;
     $("result-score").textContent = likeSimple(state.mode) ? String(value) : value.toLocaleString("ja-JP");
     $("result-unit").textContent = likeSimple(state.mode) ? "正解" : "スコア";
@@ -956,8 +1124,8 @@
       item.textContent = line;
       stats.appendChild(item);
     }
-    $("result-rank").hidden = state.mode !== "rank" && state.mode !== "life1";
-    if (state.mode === "rank" || state.mode === "life1") offerRankName(value, state.mode === "life1" ? "life1" : "rank");
+    $("result-rank").hidden = !clockLocked(state.mode);
+    if (clockLocked(state.mode)) offerRankName(value, state.mode);
     else rankOffer = null;
     show("result");
     bgmOn = false;
@@ -988,16 +1156,17 @@
     $("pass").hidden = !likeSimple();
     $("pass").disabled = false;
     $("pass").textContent = "パス";
-    const heartCap = mode === "life1" ? 1 : 3;
+    const heartCap = oneLife(mode) ? 1 : 3;
     const hearts = $("hearts").children;
     for (let i = 0; i < hearts.length; i += 1) {
       hearts[i].hidden = i >= heartCap;
       hearts[i].classList.toggle("on", i < heartCap);
     }
     $("answer").placeholder = "ひらがな・カタカナ";
-    $("count-label").textContent = mode === "dice" ? "ダイス" : mode === "simple" ? "シンプル" : mode === "life1" ? "激ムズライフ1（ランキング）" : mode === "rank" ? "ライフ3（ランキング）" : "ライフ3";
+    $("count-label").textContent = modeTitle(mode);
     clearedCount = 0;
     birdMark = "";
+    birdSpot = null;
     const mascot = $("mascot");
     mascot.hidden = true;
     mascot.classList.remove("hop");
@@ -1029,7 +1198,7 @@
     $("answer").focus();
   }
 
-  function startMode(nextMode) {
+  function startMode(nextMode, immediate) {
     const prepared = G.prepareDict(playItems(nextMode === "rank", nextMode));
     if (!prepared.dict.length) {
       toast("この条件の単語がありません");
@@ -1043,15 +1212,19 @@
     state = null;
     resetPlayChrome();
     show("play");
-    $("countdown").hidden = false;
-    $("count-num").textContent = "3";
     $("answer").focus();
     ctx();
+    if (immediate) {
+      begin(token);
+      return;
+    }
+    $("countdown").hidden = false;
+    $("count-num").textContent = "3";
     const steps = ["3", "2", "1", "スタート"];
     let index = 0;
     const beat = () => {
       if (token !== countToken) return;
-      if (holds.has("help")) {
+      if (holds.has("help") || holds.has("tips")) {
         setTimeout(beat, 200);
         return;
       }
@@ -1139,20 +1312,36 @@
     if (!muted) tone(660, 0.05, "square", 0, 0.03);
   }
 
+  function showModeTab(name) {
+    const ranking = name === "ranking";
+    $("panel-standard").hidden = ranking;
+    $("panel-ranking").hidden = !ranking;
+    $("tab-standard").classList.toggle("on", !ranking);
+    $("tab-ranking").classList.toggle("on", ranking);
+    $("tab-standard").setAttribute("aria-selected", ranking ? "false" : "true");
+    $("tab-ranking").setAttribute("aria-selected", ranking ? "true" : "false");
+  }
+  $("tab-standard").addEventListener("click", () => showModeTab("standard"));
+  $("tab-ranking").addEventListener("click", () => showModeTab("ranking"));
   $("start-simple").addEventListener("click", () => startMode("simple"));
   $("start-dice").addEventListener("click", () => startMode("dice"));
   $("start-life").addEventListener("click", () => startMode("life"));
-  $("start-life1").addEventListener("click", () => startMode("life1"));
+  $("start-extreme").addEventListener("click", () => startMode("extreme"));
+  $("start-simplerank").addEventListener("click", () => startMode("simplerank"));
+  $("start-dicerank").addEventListener("click", () => startMode("dicerank"));
   $("start-rank").addEventListener("click", () => startMode("rank"));
+  $("start-life1").addEventListener("click", () => startMode("life1"));
   let helpFrom = "title";
+  let tipsFrom = "title";
   function openHelp(from) {
     helpFrom = from;
     if (from === "play" && !clockLocked()) setHold("help", true);
     show("help");
   }
-  function openHammerHelp(from) {
-    openHelp(from);
-    $("help-hammer").scrollIntoView({ block: "start" });
+  function openTips(from) {
+    tipsFrom = from;
+    if (from === "play" && !clockLocked()) setHold("tips", true);
+    show("tips");
   }
   function closeHelp() {
     if (helpFrom === "play") {
@@ -1164,11 +1353,42 @@
     }
     show("title");
   }
+  function closeTips() {
+    if (tipsFrom === "play") {
+      setHold("tips", false);
+      if (!state || !clockLocked(state.mode)) lastTs = 0;
+      show("play");
+      if (state) $("answer").focus();
+      return;
+    }
+    show("title");
+  }
+  function retryNow() {
+    const playing = !$("screen-play").hidden;
+    const finished = !$("screen-result").hidden;
+    if (!playing && !finished) return;
+    if (finished) commitRankName($("rank-name").value);
+    startMode(mode, true);
+  }
+  let lastSpaceAt = 0;
+  document.addEventListener("keydown", (event) => {
+    if (event.code !== "Space" && event.key !== " ") return;
+    if (event.repeat || event.altKey || event.ctrlKey || event.metaKey || event.isComposing || composing || nameComposing) return;
+    const target = event.target;
+    if (target && (target.id === "rank-name" || target.id === "word-text" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")) return;
+    if ($("screen-play").hidden && $("screen-result").hidden) return;
+    event.preventDefault();
+    const now = performance.now();
+    const again = now - lastSpaceAt <= 500;
+    lastSpaceAt = again ? 0 : now;
+    if (again) retryNow();
+  });
   $("open-help").addEventListener("click", () => openHelp("title"));
-  $("open-hammer").addEventListener("click", () => openHammerHelp("title"));
+  $("open-tips").addEventListener("click", () => openTips("title"));
   $("play-help").addEventListener("click", () => openHelp("play"));
-  $("play-hammer").addEventListener("click", () => openHammerHelp("play"));
+  $("play-tips").addEventListener("click", () => openTips("play"));
   $("help-back").addEventListener("click", closeHelp);
+  $("tips-back").addEventListener("click", closeTips);
   $("genre-row").addEventListener("click", (event) => {
     const button = event.target.closest("[data-genre]");
     if (!button) return;
@@ -1182,13 +1402,18 @@
     storageSet(GENRES_KEY, JSON.stringify(GENRE_IDS.filter((item) => next.indexOf(item) >= 0)));
     refreshTitle();
   });
-  $("level-row").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-level]");
-    if (!button) return;
-    storageSet(LEVEL_KEY, button.dataset.level);
+  $("len-min").addEventListener("change", () => {
+    const range = selectedLength();
+    saveLength(Number($("len-min").value), range[1]);
     refreshTitle();
   });
-  $("open-words").addEventListener("click", openWords);
+  $("len-max").addEventListener("change", () => {
+    const range = selectedLength();
+    const max = Number($("len-max").value);
+    const min = Math.min(range[0], max);
+    saveLength(min, max);
+    refreshTitle();
+  });
   $("words-back").addEventListener("click", () => { show("title"); refreshTitle(); });
   $("word-text").addEventListener("input", updateWordStat);
   $("save-words").addEventListener("click", saveWords);
@@ -1197,7 +1422,6 @@
     updateWordStat();
   });
   $("toggle-bird").addEventListener("click", toggleBird);
-  $("toggle-sound").addEventListener("click", toggleSound);
   $("mute-play").addEventListener("click", toggleSound);
   $("retry").addEventListener("click", () => {
     commitRankName($("rank-name").value);

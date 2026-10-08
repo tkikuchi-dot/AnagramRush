@@ -200,7 +200,11 @@
   }
 
   function likeSimple(mode) {
-    return mode === "simple";
+    return mode === "simple" || mode === "simplerank";
+  }
+
+  function lateGame(mode) {
+    return mode === "life1" || mode === "extreme";
   }
 
   function bossMixWeights(questionNumber) {
@@ -234,12 +238,12 @@
   }
 
   function paceNumber(state) {
-    return state.mode === "life1" ? Math.max(state.nextNumber, RULES.bossFlatAt) : state.nextNumber;
+    return lateGame(state.mode) ? Math.max(state.nextNumber, RULES.bossFlatAt) : state.nextNumber;
   }
 
   function bossSpec(questionNumber, mode, rng) {
-    if (mode === "life1") questionNumber = Math.max(questionNumber || 1, RULES.bossFlatAt);
-    if (mode === "simple") return null;
+    if (lateGame(mode)) questionNumber = Math.max(questionNumber || 1, RULES.bossFlatAt);
+    if (likeSimple(mode)) return null;
     if (questionNumber > 0 && questionNumber < RULES.exclusiveUntil && questionNumber % 10 === 0) {
       const size = questionNumber >= 40 ? 4 : questionNumber >= 30 ? 3 : 2;
       return { size, ms: RULES.bossMs[size], exclusive: true };
@@ -362,7 +366,7 @@
   }
 
   function drawNormal(state) {
-    if (state.mode === "simple") return drawUniform(state);
+    if (likeSimple(state.mode)) return drawUniform(state);
     return drawBiased(state);
   }
 
@@ -462,7 +466,7 @@
   }
 
   function maxSlotsFor(state) {
-    if (state.mode === "life1") return 4;
+    if (lateGame(state.mode)) return 4;
     const done = finishedCount(state);
     if (done >= 30) return 4;
     if (done >= 20) return 3;
@@ -592,7 +596,7 @@
     const prepared = prepareDict(rawWords);
     const rank = mode === "rank";
     const state = {
-      mode: mode === "rank" || mode === "simple" || mode === "dice" || mode === "life1" ? mode : "life",
+      mode: mode === "rank" || mode === "simple" || mode === "simplerank" || mode === "dice" || mode === "dicerank" || mode === "life1" || mode === "extreme" ? mode : "life",
       hints: rank ? false : opts.hints !== false,
       dict: prepared.dict,
       groups: prepared.groups,
@@ -603,7 +607,7 @@
       nextNumber: 1,
       nextId: 1,
       spawnAcc: 0,
-      lives: mode === "life1" ? 1 : RULES.lives,
+      lives: lateGame(mode) ? 1 : RULES.lives,
       score: 0,
       correct: 0,
       combo: 0,
@@ -628,7 +632,7 @@
     }
     if (likeSimple(state.mode)) spawnSimple(state);
     else spawnUpcoming(state);
-    if (state.mode === "life1") state.spawnAcc = spawnIntervalMs(paceNumber(state));
+    if (lateGame(state.mode)) state.spawnAcc = spawnIntervalMs(paceNumber(state));
     return state;
   }
 
@@ -638,7 +642,7 @@
     const base = puzzle.boss ? 400 : 100;
     const speed = Math.round(ratio * (puzzle.boss ? 400 : 200));
     const early = part.revealedByTime ? 0 : 80;
-    const mult = 1 + Math.min(state.combo, 10) * 0.1;
+    const mult = state.mode === "life1" || state.mode === "dicerank" ? 1 : 1 + Math.min(state.combo, 10) * 0.1;
     return Math.max(1, Math.round((base + speed + early) * mult));
   }
 
@@ -680,7 +684,7 @@
       cleared: remainParts.length === 0,
     });
     if (remainParts.length === 0) {
-      if ((state.mode === "life" || state.mode === "dice" || state.mode === "life1") && puzzle.boss) {
+      if ((state.mode === "life" || state.mode === "dice" || state.mode === "dicerank" || state.mode === "life1" || state.mode === "extreme") && puzzle.boss) {
         const bonus = RULES.bossClearBonusPerWord * puzzle.parts.length;
         state.score += bonus;
         pushEvent(state, { type: "bonus", id: puzzle.id, points: bonus });
@@ -717,7 +721,7 @@
 
   function recoverOnMiss(state) {
     if (!state || likeSimple(state.mode) || state.phase === "over") return;
-    const cap = state.mode === "life1" ? 1 : RULES.lives;
+    const cap = lateGame(state.mode) ? 1 : RULES.lives;
     const reached = Math.max(0, state.nextNumber - 1);
     const due = Math.floor(reached / 50);
     if (due <= state.healsUsed || state.lives >= cap) return;
@@ -830,7 +834,7 @@
       fillIfEmpty(state);
       return;
     }
-    if (state.phase === "wait-boss" || (state.mode !== "life1" && finishedCount(state) < 10)) return;
+    if (state.phase === "wait-boss" || (!lateGame(state.mode) && finishedCount(state) < 10)) return;
     state.spawnAcc -= dt;
     if (state.spawnAcc > 0) return;
     noteSpawn(state, spawnUpcoming(state));
@@ -838,7 +842,7 @@
 
   function tick(state, dt) {
     if (!state || state.phase === "over" || state.phase === "ready") return;
-    if (state.paused && state.mode !== "rank" && state.mode !== "life1") return;
+    if (state.paused && state.mode !== "rank" && state.mode !== "life1" && state.mode !== "dicerank" && state.mode !== "simplerank") return;
     const step = Math.max(0, dt);
     if (likeSimple(state.mode)) {
       state.elapsedMs += step;

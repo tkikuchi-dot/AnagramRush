@@ -487,6 +487,74 @@ for (let seed = 1; seed <= 40; seed += 1) {
   assert.strictEqual(ranked.score, G.RULES.rankPoints * 2);
 }
 
+{
+  let matched = false;
+  for (let seed = 1; seed < 80 && !matched; seed += 1) {
+    const state = fresh(PLAIN, "life1", seed);
+    const first = state.active[0];
+    if (!first || first.boss) continue;
+    first.remainMs = first.totalMs;
+    const before = state.score;
+    G.submit(state, first.parts[0].word);
+    const gained = state.score - before;
+    const second = state.active[0];
+    if (!second || second.boss) continue;
+    second.remainMs = second.totalMs;
+    const before2 = state.score;
+    G.submit(state, second.parts[0].word);
+    assert.strictEqual(state.score - before2, gained);
+    matched = true;
+  }
+  assert.strictEqual(matched, true);
+}
+
+{
+  const paused = fresh(PLAIN, "dicerank", 1);
+  assert.strictEqual(paused.mode, "dicerank");
+  paused.paused = true;
+  const remain = paused.active[0].remainMs;
+  G.tick(paused, 1000);
+  assert.strictEqual(paused.active[0].remainMs, remain - 1000);
+  let matched = false;
+  for (let seed = 1; seed < 80 && !matched; seed += 1) {
+    const state = fresh(PLAIN, "dicerank", seed);
+    const first = state.active[0];
+    if (!first || first.boss) continue;
+    first.remainMs = first.totalMs;
+    const before = state.score;
+    G.submit(state, first.parts[0].word);
+    const gained = state.score - before;
+    const second = state.active[0];
+    if (!second || second.boss) continue;
+    second.remainMs = second.totalMs;
+    const before2 = state.score;
+    G.submit(state, second.parts[0].word);
+    assert.strictEqual(state.score - before2, gained);
+    matched = true;
+  }
+  assert.strictEqual(matched, true);
+}
+
+{
+  const extreme = fresh(PLAIN, "extreme", 1);
+  assert.strictEqual(extreme.mode, "extreme");
+  assert.strictEqual(extreme.lives, 1);
+  assert.strictEqual(G.maxSlotsFor(extreme), 4);
+  extreme.paused = true;
+  const remain = extreme.active[0].remainMs;
+  G.tick(extreme, 1000);
+  assert.strictEqual(extreme.active[0].remainMs, remain);
+
+  const ranked = fresh(PLAIN, "simplerank", 1);
+  assert.strictEqual(ranked.mode, "simplerank");
+  assert.strictEqual(ranked.simpleRemainMs, 120000);
+  assert.strictEqual(G.pass(ranked).ok, true);
+  const clock = fresh(PLAIN, "simplerank", 2);
+  clock.paused = true;
+  G.tick(clock, 1000);
+  assert.strictEqual(clock.simpleRemainMs, 119000);
+}
+
 // After 100, a mixed boss still shares the board.
 {
   const state = fresh();

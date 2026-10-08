@@ -118,9 +118,55 @@
   .mode .name { font-size: 28px; font-weight: 700; line-height: 1.2; }
   .mode .desc, .mode .best { color: var(--muted); font-size: 14px; }
   .mode-life { border-color: rgba(255, 45, 138, 0.75); box-shadow: inset 3px 0 0 var(--red); }
+  .mode-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 0 0 12px;
+  }
+  .mode-tab {
+    background: transparent;
+    color: var(--muted);
+    border-color: var(--line);
+    box-shadow: none;
+    padding: 12px 8px;
+    font-size: 16px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+  }
+  .mode-tab.on {
+    background: var(--gold);
+    color: #041018;
+    border-color: var(--gold);
+    box-shadow: 0 0 16px rgba(62, 240, 255, 0.35);
+  }
+  .mode-rank {
+    background: #1c1406;
+    border-color: var(--amber);
+    box-shadow: inset 3px 0 0 var(--amber);
+  }
+  .mode-rank .kicker, .mode-rank .name { color: var(--amber); }
   .genre-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
   .level-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 8px; }
-  .level-line .genre-row { margin: 0; }
+  .len-picks { display: flex; flex-wrap: wrap; gap: 8px; }
+  .len-pick {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 14px;
+    font-weight: 900;
+    color: var(--gold);
+  }
+  .len-pick select {
+    font-size: 16px;
+    font-weight: 700;
+    padding: 8px 10px;
+    border-radius: 2px;
+    border: 1px solid var(--line);
+    background: #07131c;
+    color: var(--ink);
+  }
   .level-note { margin: 0; flex: 1 1 220px; line-height: 1.45; }
   .genre {
     background: transparent;
@@ -169,7 +215,6 @@
     background: #07131c;
     color: var(--ink);
   }
-  #start-rank { border-color: var(--gold); box-shadow: 0 0 18px rgba(62, 240, 255, 0.16); }
   .volume-box { display: grid; gap: 6px; margin: 0 0 14px; }
   .volume {
     display: grid;
@@ -213,19 +258,20 @@
   }
   .hud {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
-    grid-template-areas: "quit score side bird" "help sub mute bird";
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "quit score side" "help sub mute";
     align-items: center;
     column-gap: 8px;
     padding: calc(8px + env(safe-area-inset-top)) 8px 4px 12px;
   }
   #mascot {
-    grid-area: bird;
+    position: absolute;
+    z-index: 4;
+    left: 0;
+    top: 0;
     width: 104px;
     height: 78px;
     object-fit: contain;
-    justify-self: end;
-    align-self: center;
     pointer-events: none;
   }
   #mascot.hop { animation: mascot-hop 0.55s ease; }
@@ -757,24 +803,28 @@
         <div class="title-tools">
           <button type="button" id="toggle-bird" class="help-btn" aria-pressed="true">鳥オン</button>
           <button type="button" id="open-help" class="help-btn">遊び方</button>
-          <button type="button" id="open-hammer" class="help-btn">🔨の使い方</button>
+          <button type="button" id="open-tips" class="help-btn">Tips</button>
         </div>
       </div>
       <h1>アナグラムラッシュ</h1>
       <p class="lead">ばらけた文字を、もとの単語に戻せ。</p>
       <div class="level-line">
-        <div class="genre-row" id="level-row">
-          <button type="button" class="genre" data-level="easy" aria-pressed="false">イージー</button>
-          <button type="button" class="genre on" data-level="normal" aria-pressed="true">ノーマル</button>
-          <button type="button" class="genre" data-level="hard" aria-pressed="false">ハード</button>
+        <div class="len-picks">
+          <label class="len-pick">最小
+            <select id="len-min" aria-label="最小の文字数"></select>
+          </label>
+          <label class="len-pick">最大
+            <select id="len-max" aria-label="最大の文字数"></select>
+          </label>
         </div>
-        <p class="note level-note">ライフ3（ランキング）と激ムズライフ1（ランキング）は、難易度を変えても出題は同じです。</p>
+        <p class="note level-note">文字数とジャンルはスタンダードで使います。</p>
       </div>
       <div class="genre-row" id="genre-row">
         <button type="button" class="genre on" data-genre="mammal" aria-pressed="true">哺乳類</button>
         <button type="button" class="genre on" data-genre="fish" aria-pressed="true">魚類</button>
         <button type="button" class="genre on" data-genre="food" aria-pressed="true">料理</button>
         <button type="button" class="genre" data-genre="pokemon" aria-pressed="false">ポケモン</button>
+        <button type="button" class="genre" data-genre="proverb" aria-pressed="false">ことわざ</button>
       </div>
       <p class="word-line" id="word-line">単語 —</p>
       <p class="note" id="life-note" hidden>単語が4語未満だと、大きなボスは短くなります。</p>
@@ -788,10 +838,14 @@
           <span id="se-volume-label" class="num">80</span>
         </label>
       </div>
-      <div class="modes">
+      <div class="mode-tabs" role="tablist">
+        <button type="button" id="tab-standard" class="mode-tab on" role="tab" aria-selected="true">スタンダード</button>
+        <button type="button" id="tab-ranking" class="mode-tab" role="tab" aria-selected="false">ランキング</button>
+      </div>
+      <div class="modes" id="panel-standard">
         <button type="button" id="start-simple" class="mode">
           <span class="kicker">120秒</span>
-          <span class="name">シンプル</span>
+          <span class="name">シングル</span>
           <span class="desc">正解した数を競う</span>
           <span class="best num" id="best-simple">BEST —</span>
         </button>
@@ -807,32 +861,58 @@
           <span class="desc">ライフが尽きるまでのスコア</span>
           <span class="best num" id="best-life">BEST —</span>
         </button>
-        <button type="button" id="start-life1" class="mode mode-life">
+        <button type="button" id="start-extreme" class="mode mode-life">
           <span class="kicker">♥ × 1</span>
-          <span class="name">激ムズライフ1（ランキング）</span>
+          <span class="name">激ムズ</span>
           <span class="desc">最初から終盤。ライフが減ると終わり</span>
-          <span class="best num" id="best-life1">TOP —</span>
+          <span class="best num" id="best-extreme">BEST —</span>
         </button>
-        <button type="button" id="start-rank" class="mode">
-          <span class="kicker">哺乳類・魚類・料理</span>
-          <span class="name">ライフ3（ランキング）</span>
+      </div>
+      <div class="modes" id="panel-ranking" hidden>
+        <button type="button" id="start-simplerank" class="mode mode-rank">
+          <span class="kicker">120秒</span>
+          <span class="name">シングル</span>
+          <span class="desc">正解した数。哺乳類・魚類・料理、3〜9文字</span>
+          <span class="best num" id="best-simplerank">TOP —</span>
+        </button>
+        <button type="button" id="start-dicerank" class="mode mode-rank">
+          <span class="kicker">♥ × 3</span>
+          <span class="name">ダイス</span>
+          <span class="desc">立方体。速さで伸びる。連続では増えない</span>
+          <span class="best num" id="best-dicerank">TOP —</span>
+        </button>
+        <button type="button" id="start-rank" class="mode mode-rank">
+          <span class="kicker">♥ × 3</span>
+          <span class="name">ライフ3</span>
           <span class="desc">1語100点。連続しても増えない</span>
           <span class="best num" id="best-rank">TOP —</span>
         </button>
-      </div>
-      <div class="rank-box">
-        <p class="eyebrow">ライフ3（ランキング）</p>
-        <ol id="title-rank" class="rank-list"></ol>
-        <p class="note" id="rank-note"></p>
-      </div>
-      <div class="rank-box">
-        <p class="eyebrow">激ムズライフ1（ランキング）</p>
-        <ol id="title-life1-rank" class="rank-list"></ol>
-        <p class="note" id="life1-rank-note"></p>
-      </div>
-      <div class="title-actions">
-        <button type="button" id="open-words" class="ghost">単語を登録</button>
-        <button type="button" id="toggle-sound" class="ghost">音オン</button>
+        <button type="button" id="start-life1" class="mode mode-rank">
+          <span class="kicker">♥ × 1</span>
+          <span class="name">激ムズ</span>
+          <span class="desc">最初から終盤。連続では増えない</span>
+          <span class="best num" id="best-life1">TOP —</span>
+        </button>
+        <div class="rank-box">
+          <p class="eyebrow">シングル（ランキング）</p>
+          <ol id="title-simple-rank" class="rank-list"></ol>
+          <p class="note" id="simple-rank-note"></p>
+        </div>
+        <div class="rank-box">
+          <p class="eyebrow">ダイス（ランキング）</p>
+          <ol id="title-dice-rank" class="rank-list"></ol>
+          <p class="note" id="dice-rank-note"></p>
+        </div>
+        <div class="rank-box">
+          <p class="eyebrow">ライフ3（ランキング）</p>
+          <ol id="title-rank" class="rank-list"></ol>
+          <p class="note" id="rank-note"></p>
+        </div>
+        <div class="rank-box">
+          <p class="eyebrow">激ムズ（ランキング）</p>
+          <ol id="title-life1-rank" class="rank-list"></ol>
+          <p class="note" id="life1-rank-note"></p>
+        </div>
       </div>
     </div>
   </section>
@@ -857,7 +937,7 @@
         <li>その問題は消える。点数は入らず、ライフも減らない。連続はリセットされる。</li>
         <li>消した問題の答えが、上の空いているところに出る。</li>
       </ul>
-      <h2>シンプル</h2>
+      <h2>シングル</h2>
       <ul>
         <li>120秒で、正解した数を競う。</li>
         <li>何も入れずに決定するとパス。1回だけ。ボタンでも同じ。</li>
@@ -869,6 +949,13 @@
         <li>問題は立方体。文字は6面に割り振る。余った面は空欄。6面を超えるときはサイコロを増やす。</li>
         <li>問題が出ているあいだ、サイコロは回り続ける。回り方は5種類。</li>
         <li>ボスもサイコロ。面が足りないときはサイコロを増やす。</li>
+      </ul>
+      <h2>激ムズ</h2>
+      <ul>
+        <li>ライフは1つ。時間切れでライフが減ると、そこで終わり。</li>
+        <li>最初からライフ3の終盤。同時に4問まで出て、追加も速い。</li>
+        <li>文字の長さも、ボスの混ざり方も、最初からいちばん難しい状態。</li>
+        <li>文字数とジャンルは、タイトルで選んだもの。速さでも連続でも増える。</li>
       </ul>
       <h2>ライフ3</h2>
       <ul>
@@ -889,12 +976,24 @@
       </ul>
       <h2>遊ぶ前</h2>
       <ul>
-        <li>イージーは3〜6文字、ノーマルは3〜8文字、ハードは4〜9文字だけ出る。</li>
-        <li>ジャンルは哺乳類、魚類、料理、ポケモンから、いくつでも選べる。</li>
-        <li>ライフ3（ランキング）と激ムズライフ1（ランキング）に出るのは、哺乳類、魚類、料理。</li>
+        <li>文字数の最小と最大は、選んでいるリストにある文字数から選ぶ。その範囲だけ出る。シングル、ダイス、ライフ3、激ムズで使う。</li>
+        <li>ジャンルは哺乳類、魚類、料理、ポケモン、ことわざから、いくつでも選べる。ポケモンとことわざはランキングに出ない。</li>
+        <li>ランキングの4モードは、哺乳類、魚類、料理の3〜9文字。</li>
         <li>別解がある問題は、最初から先頭の1文字が見える。</li>
-        <li>10問正解するごとに、右上に鳥が出る。50問目からはサングラスの鳥になる。タイトルの鳥ボタンで止められる。</li>
-        <li>「単語を登録」は、シンプル、ダイス、ライフ3の出題に足される。</li>
+        <li>10問正解するごとに、空いているところに鳥が出る。ボタンや文字には重ならない。50問目からはサングラスの鳥になる。タイトルの鳥ボタンで止められる。</li>
+      </ul>
+      <h2>シングル（ランキング）</h2>
+      <ul>
+        <li>ルールはシングルと同じ。120秒で、正解した数を競う。パスは1回。</li>
+        <li>ジャンルは哺乳類、魚類、料理。文字数は3〜9。</li>
+        <li>遊び方や中断の確認を開いても、画面を離れても、タイマーは止まらない。</li>
+        <li>上位10件に入ると、名前を登録できる。載せないボタンもある。</li>
+      </ul>
+      <h2>ダイス（ランキング）</h2>
+      <ul>
+        <li>見た目と進み方はダイスと同じ。ライフ3つ。ジャンルは哺乳類、魚類、料理。文字数は3〜9。</li>
+        <li>遊び方や中断の確認を開いても、画面を離れても、タイマーは止まらない。</li>
+        <li>速さで増える。連続では増えない。上位10件に入ると、名前を登録できる。載せないボタンもある。</li>
       </ul>
       <h2>ライフ3（ランキング）</h2>
       <ul>
@@ -907,14 +1006,31 @@
         <li>上位10件に入ると、名前を登録できる。空欄のままなら「とくめいきぼう君」。載せないボタンもある。</li>
         <li>スコアは、遊んだ人と同じ場所に集まる。</li>
       </ul>
-      <h2>激ムズライフ1（ランキング）</h2>
+      <h2>激ムズ（ランキング）</h2>
       <ul>
         <li>ライフは1つ。時間切れでライフが減ると、そこで終わり。</li>
         <li>最初からライフ3の終盤。同時に4問まで出て、追加も速い。</li>
         <li>文字の長さも、ボスの混ざり方も、最初からいちばん難しい状態。</li>
-        <li>ジャンルは哺乳類、魚類、料理。文字数は4〜9。点数はライフ3と同じ。</li>
+        <li>ジャンルは哺乳類、魚類、料理。文字数は3〜9。速さで増える。連続では増えない。</li>
         <li>遊び方や中断の確認を開いても、画面を離れても、タイマーは止まらない。</li>
         <li>上位10件に入ると、名前を登録できる。載せないボタンもある。スコアの集まる場所は、ライフ3（ランキング）とは別。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="screen-tips" class="screen help" hidden>
+    <div class="sheet">
+      <button type="button" id="tips-back" class="ghost">戻る</button>
+      <h2>ブレイクハンマー</h2>
+      <ul>
+        <li>下の欄の左にあるブレイクハンマーを、消したい問題までドラッグする。</li>
+        <li>1プレイに1回だけ使える。</li>
+        <li>その問題は消える。点数は入らず、ライフも減らない。連続はリセットされる。</li>
+        <li>消した問題の答えが、上の空いているところに出る。</li>
+      </ul>
+      <h2>スペース2回</h2>
+      <ul>
+        <li>プレイ中か結果画面で、スペースを2回押すと、いまのモードがすぐ最初から始まる。</li>
       </ul>
     </div>
   </section>
@@ -923,7 +1039,7 @@
     <div class="sheet">
       <button type="button" id="words-back" class="ghost">戻る</button>
       <h2>単語を登録</h2>
-      <p class="lead">1行に1語。シンプルとライフ3では、選んだジャンルに足して出る。</p>
+      <p class="lead">1行に1語。スタンダードでは、選んだジャンルに足して出る。</p>
       <textarea id="word-text" spellcheck="false" autocapitalize="off" placeholder="りんご&#10;みかん&#10;ぶどう"></textarea>
       <p class="word-line" id="word-stat"></p>
       <div class="row-actions">
@@ -934,12 +1050,13 @@
   </section>
 
   <section id="screen-play" class="screen play" hidden>
+    <img id="mascot" alt="" hidden>
     <div class="play-frame">
       <header class="hud">
         <button type="button" id="quit" class="textbtn">やめる</button>
         <div class="hud-links">
           <button type="button" id="play-help" class="textbtn">遊び方</button>
-          <button type="button" id="play-hammer" class="textbtn">🔨の使い方</button>
+          <button type="button" id="play-tips" class="textbtn">Tips</button>
         </div>
         <p id="hud-score" class="score num"><span id="hud-score-value">0</span></p>
         <div id="hud-side">
@@ -948,7 +1065,6 @@
         </div>
         <button type="button" id="mute-play" class="textbtn">音</button>
         <p id="hud-sub" class="hud-sub"></p>
-        <img id="mascot" alt="" hidden>
       </header>
       <div class="stage">
         <p id="reveal" class="reveal" hidden></p>
@@ -964,7 +1080,7 @@
     </div>
     <div id="countdown" class="countdown" hidden>
       <div>
-        <p id="count-label">シンプル</p>
+        <p id="count-label">シングル</p>
         <b id="count-num">3</b>
       </div>
     </div>
@@ -978,7 +1094,7 @@
   </section>
 
   <section id="screen-result" class="screen result" hidden>
-    <p class="eyebrow" id="result-mode">シンプル</p>
+    <p class="eyebrow" id="result-mode">シングル</p>
     <p class="result-score num" id="result-score">0</p>
     <p class="result-unit" id="result-unit">正解</p>
     <p class="result-answer" id="result-answer" hidden></p>
@@ -1006,6 +1122,7 @@
 <script src="words.js"></script>
 <script src="genres.js"></script>
 <script src="pokemon.js"></script>
+<script src="kotowaza.js"></script>
 <script src="ui.js"></script>
 </body>
 </html>
