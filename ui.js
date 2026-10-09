@@ -4,7 +4,7 @@
   const G = window.AnagramGame;
   const WORDS_KEY = "anagram.words.v1";
   const GENRES_KEY = "anagram.genres.v2";
-  const GENRE_IDS = ["mammal", "fish", "food", "bird", "insect", "dinosaur", "flower", "fruit", "star", "instrument", "element", "character", "pokemon", "proverb"];
+  const GENRE_IDS = ["mammal", "fish", "food", "bird", "insect", "flower", "fruit", "star", "instrument", "element", "character", "pokemon", "proverb"];
   const RANK_GENRES = ["mammal", "fish", "food"];
   const LEVEL_KEY = "anagram.level.v1";
   const LEN_MIN_KEY = "anagram.lenmin.v1";
@@ -25,12 +25,11 @@
   const DEFAULT_RANK_NAME = "とくめいきぼう君";
   const RANK_NAME_MAX = 12;
   const GENRE_LABEL = {
-    mammal: "哺乳類",
+    mammal: "動物",
     fish: "魚類",
     food: "料理",
     bird: "鳥",
     insect: "昆虫",
-    dinosaur: "恐竜",
     flower: "花",
     fruit: "果物",
     star: "星座",

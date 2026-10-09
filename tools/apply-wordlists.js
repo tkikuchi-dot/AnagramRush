@@ -72,7 +72,6 @@ const foodClaim = claim(food.out);
 const extraNames = [
   ["bird", "bird.txt"],
   ["insect", "insect.txt"],
-  ["dinosaur", "dinosaur.txt"],
   ["flower", "flower.txt"],
   ["fruit", "fruit.txt"],
   ["star", "star.txt"],
@@ -86,7 +85,7 @@ for (const [id, file] of extraNames) {
   extras[id] = clean(readWords(file), keepFlat.has(id));
 }
 
-const genresJs = `/* よく知られた哺乳類・魚類・料理。カタカナ。ランキングは3〜9文字。 */
+const genresJs = `/* よく知られた動物・魚類・料理。カタカナ。ランキングは3〜9文字。 */
 (function (root) {
   const genres = {
     mammal: ${jsString(mammalClaim.kept)},
@@ -102,7 +101,7 @@ fs.writeFileSync(path.join(root, "genre-mammal.txt"), mammalClaim.kept.join("\n"
 fs.writeFileSync(path.join(root, "genre-fish.txt"), fishClaim.kept.join("\n") + "\n");
 fs.writeFileSync(path.join(root, "genre-food.txt"), foodClaim.kept.join("\n") + "\n");
 
-const famous = `/* 出題に残す、よく知られた名前。ランキングの哺乳類・魚類・料理。 */
+const famous = `/* 出題に残す、よく知られた名前。ランキングの動物・魚類・料理。 */
 module.exports = {
   mammal: ${JSON.stringify(mammalClaim.kept, null, 2)},
   fish: ${JSON.stringify(fishClaim.kept, null, 2)},
