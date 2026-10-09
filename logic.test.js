@@ -616,6 +616,21 @@ for (let seed = 1; seed <= 40; seed += 1) {
     { text: "ぶどう", genre: "fish" },
   ], "rank", 1);
   assert.ok(["mammal", "food", "fish"].includes(state.active[0].parts[0].genre));
+  const noted = G.prepareDict([
+    { text: "タンジロウ", genre: "character", note: "鬼滅の刃" },
+    { text: "マリオ", genre: "character", note: "マリオ" },
+    "ルイージ\tマリオ",
+  ]);
+  assert.strictEqual(noted.dict.find((entry) => entry.text === "タンジロウ").note, "鬼滅の刃");
+  assert.strictEqual(noted.dict.find((entry) => entry.text === "マリオ").note, "");
+  assert.strictEqual(noted.dict.find((entry) => entry.text === "ルイージ").note, "マリオ");
+  const played = G.createGame([
+    { text: "タンジロウ", genre: "character", note: "鬼滅の刃" },
+    { text: "ネズコ", genre: "character", note: "鬼滅の刃" },
+    { text: "ゼニツ", genre: "character", note: "鬼滅の刃" },
+    { text: "イノスケ", genre: "character", note: "鬼滅の刃" },
+  ], "simple", 1);
+  assert.strictEqual(played.active[0].parts[0].note, "鬼滅の刃");
 }
 
 // A wrong answer restores one life for each 50 questions reached, and never past 3.

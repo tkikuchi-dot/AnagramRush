@@ -153,14 +153,28 @@
     return true;
   }
 
+  function visibleNote(note, word) {
+    const label = String(note || "").trim();
+    if (!label) return "";
+    const answer = norm(word);
+    if (answer.length >= 2 && norm(label).includes(answer)) return "";
+    return label;
+  }
+
   function readEntry(raw) {
     if (raw && typeof raw === "object") {
+      const text = cleanText(raw.text);
       return {
-        text: cleanText(raw.text),
+        text,
         genre: typeof raw.genre === "string" ? raw.genre : "",
+        note: visibleNote(raw.note, text),
       };
     }
-    return { text: cleanText(raw), genre: "" };
+    const whole = cleanText(raw);
+    const tab = whole.indexOf("\t");
+    const text = tab < 0 ? whole : whole.slice(0, tab).trim();
+    const note = tab < 0 ? "" : whole.slice(tab + 1).trim();
+    return { text, genre: "", note: visibleNote(note, text) };
   }
 
   function prepareDict(rawList) {
@@ -186,6 +200,7 @@
         match,
         chars,
         genre: item.genre,
+        note: item.note || "",
         key: chars.slice().sort().join("\u0001"),
         counts: countChars(chars),
       });
@@ -599,6 +614,7 @@
       key: entry.key,
       counts: entry.counts,
       genre: entry.genre || "",
+      note: entry.note || "",
       solved: false,
       ambiguous: false,
       shown: 0,

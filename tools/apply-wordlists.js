@@ -12,12 +12,19 @@ function chars(text) {
   return Array.from(text).length;
 }
 
+function splitNoted(line) {
+  const tab = line.indexOf("\t");
+  if (tab < 0) return { word: line, note: "" };
+  return { word: line.slice(0, tab).trim(), note: line.slice(tab + 1).trim() };
+}
+
 function clean(lines, keepFlat) {
   const bad = [];
   const out = [];
   const seen = new Set();
   for (const raw of lines) {
-    const word = raw.normalize("NFKC").trim();
+    const parsed = splitNoted(raw.normalize("NFKC").trim());
+    const word = parsed.word;
     if (!word || word.startsWith("#")) continue;
     if (!/^[ァ-ヶー]+$/.test(word)) {
       bad.push(word);
@@ -35,9 +42,9 @@ function clean(lines, keepFlat) {
     }
     if (seen.has(word)) continue;
     seen.add(word);
-    out.push(word);
+    out.push(parsed.note ? word + "\t" + parsed.note : word);
   }
-  out.sort((a, b) => a.localeCompare(b, "ja"));
+  out.sort((a, b) => splitNoted(a).word.localeCompare(splitNoted(b).word, "ja"));
   return { out, bad };
 }
 
@@ -85,7 +92,7 @@ for (const [id, file] of extraNames) {
   extras[id] = clean(readWords(file), keepFlat.has(id));
 }
 
-const genresJs = `/* よく知られた動物・魚類・料理。カタカナ。ランキングは3〜9文字。 */
+const genresJs = `/* よく知られた動物・魚類・料理。カタカナ。 */
 (function (root) {
   const genres = {
     mammal: ${jsString(mammalClaim.kept)},
@@ -101,7 +108,7 @@ fs.writeFileSync(path.join(root, "genre-mammal.txt"), mammalClaim.kept.join("\n"
 fs.writeFileSync(path.join(root, "genre-fish.txt"), fishClaim.kept.join("\n") + "\n");
 fs.writeFileSync(path.join(root, "genre-food.txt"), foodClaim.kept.join("\n") + "\n");
 
-const famous = `/* 出題に残す、よく知られた名前。ランキングの動物・魚類・料理。 */
+const famous = `/* 出題に残す、よく知られた動物・魚類・料理の名前。 */
 module.exports = {
   mammal: ${JSON.stringify(mammalClaim.kept, null, 2)},
   fish: ${JSON.stringify(fishClaim.kept, null, 2)},
@@ -110,7 +117,7 @@ module.exports = {
 `;
 fs.writeFileSync(path.join(root, "famous-words.js"), famous);
 
-let more = `/* 追加ジャンル。選んだときだけ出題する。ランキングには入れない。 */
+let more = `/* 追加ジャンル。鳥、昆虫、花、果物、楽器、元素はランキングにも出る。星座とキャラクターは選んだときだけ。 */
 (function (root) {
   const genres = root.ANAGRAM_GENRES || (root.ANAGRAM_GENRES = {});
 `;

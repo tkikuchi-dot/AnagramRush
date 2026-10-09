@@ -5,7 +5,14 @@
   const WORDS_KEY = "anagram.words.v1";
   const GENRES_KEY = "anagram.genres.v2";
   const GENRE_IDS = ["mammal", "fish", "food", "bird", "insect", "flower", "fruit", "star", "instrument", "element", "character", "pokemon", "proverb"];
-  const RANK_GENRES = ["mammal", "fish", "food"];
+  const RANK_GENRES = ["mammal", "fish", "food", "bird", "insect", "flower", "fruit", "instrument", "element"];
+  const FAMOUS_ELEMENTS = new Set([
+    "アエン", "アルミニウム", "アルゴン", "イオウ", "ウラン", "エンソ", "カリウム", "カルシウム",
+    "キン", "ギン", "クロム", "ケイソ", "コバルト", "サンソ", "スイギン", "スイソ", "スズ",
+    "チタン", "チッソ", "タンソ", "テツ", "ドウ", "ナトリウム", "ナマリ", "ニッケル", "ニホニウム",
+    "ネオン", "ハッキン", "ヒソ", "フッソ", "プルトニウム", "ヘリウム", "ホウソ", "マグネシウム",
+    "マンガン", "ヨウソ", "ラジウム", "ラドン", "リチウム", "リン", "バリウム", "タングステン",
+  ]);
   const LEVEL_KEY = "anagram.level.v1";
   const LEN_MIN_KEY = "anagram.lenmin.v1";
   const LEN_MAX_KEY = "anagram.lenmax.v1";
@@ -167,23 +174,32 @@
     }
     return best;
   }
+  function storedLength() {
+    if (storageGet(LEN_MIN_KEY) == null && storageGet(LEN_MAX_KEY) == null) {
+      const legacy = storageGet(LEVEL_KEY);
+      if (legacy === "easy") return [G.RULES.minChars, 6];
+      if (legacy === "hard") return [4, 9];
+      return null;
+    }
+    let min = Number(storageGet(LEN_MIN_KEY));
+    let max = Number(storageGet(LEN_MAX_KEY));
+    if (!Number.isInteger(min)) min = G.RULES.minChars;
+    if (!Number.isInteger(max)) max = G.RULES.maxChars;
+    if (min > max) max = min;
+    return [min, max];
+  }
+  function lengthInChoices(choices, range) {
+    if (!range) return true;
+    return choices.some((n) => n >= range[0] && n <= range[1]);
+  }
   function selectedLength() {
     const choices = availableLengths();
     const low = choices[0];
     const high = choices[choices.length - 1];
-    let min = low;
-    let max = high;
-    if (storageGet(LEN_MIN_KEY) == null && storageGet(LEN_MAX_KEY) == null) {
-      const legacy = storageGet(LEVEL_KEY);
-      if (legacy === "easy") max = nearestLength(choices, 6, high);
-      else if (legacy === "hard") {
-        min = nearestLength(choices, 4, low);
-        max = nearestLength(choices, 9, high);
-      }
-    } else {
-      min = nearestLength(choices, storageGet(LEN_MIN_KEY), low);
-      max = nearestLength(choices, storageGet(LEN_MAX_KEY), high);
-    }
+    const stored = storedLength();
+    if (!stored || !lengthInChoices(choices, stored)) return [low, high];
+    let min = nearestLength(choices, stored[0], low);
+    let max = nearestLength(choices, stored[1], high);
     if (min > max) max = min;
     return [min, max];
   }
@@ -213,11 +229,19 @@
     const items = [];
     const pushLines = (text, genre) => {
       for (const line of String(text || "").split(/\r?\n/)) {
-        const word = line.trim();
+        let word = line.trim();
         if (!word || word.startsWith("#")) continue;
+        let note = "";
+        const tab = word.indexOf("\t");
+        if (tab >= 0) {
+          note = word.slice(tab + 1).trim();
+          word = word.slice(0, tab).trim();
+        }
+        if (!word) continue;
+        if (fixed && genre === "element" && !FAMOUS_ELEMENTS.has(word)) continue;
         const length = Array.from(word).length;
         if (length < range[0] || length > range[1]) continue;
-        items.push({ text: word, genre: genre });
+        items.push({ text: word, genre: genre, note: note });
       }
     };
     for (const id of ids) pushLines(genreSource(id), id);
@@ -463,6 +487,10 @@
     const customCount = custom ? G.prepareDict(playItems(false).filter((item) => !item.genre)).dict.length : 0;
     const genreLabel = genres.map((id) => GENRE_LABEL[id]).join("・");
     const lengthLabel = range[0] === range[1] ? range[0] + "文字" : range[0] + "〜" + range[1] + "文字";
+    const lifted = !lengthInChoices(lengths, storedLength());
+    $("length-note").textContent = lifted
+      ? "選んだ文字数がこのジャンルにないので、ある文字数を全部出します。"
+      : "文字数とジャンルはスタンダードで使います。";
     $("word-line").textContent = lengthLabel + "　" + genreLabel + " " + prepared.dict.length + "語" + (customCount ? "（登録 " + customCount + "）" : "");
     $("life-note").hidden = prepared.dict.length >= 4;
     $("start-simple").disabled = prepared.dict.length < 1;
@@ -721,7 +749,7 @@
       for (const part of puzzle.parts) {
         const item = document.createElement("li");
         if (part.solved) item.className = "done";
-        const label = GENRE_LABEL[part.genre];
+        const label = part.note || GENRE_LABEL[part.genre];
         if (label) {
           const genre = document.createElement("span");
           genre.className = "len-genre";
@@ -758,7 +786,7 @@
     const names = [];
     for (const part of puzzle.parts) {
       if (part.solved || !part.genre) continue;
-      const label = GENRE_LABEL[part.genre];
+      const label = part.note || GENRE_LABEL[part.genre];
       if (label && names.indexOf(label) < 0) names.push(label);
     }
     if (!names.length) return null;
