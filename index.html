@@ -653,6 +653,7 @@
   }
   .card.tight .tile, .card.span.tight .tile { font-size: clamp(14px, 4cqw, 24px); }
   .card.tighter .tile, .card.span.tighter .tile { font-size: 13px; min-width: 1.05em; }
+  .card.densest .tile { font-size: 12px; min-width: 0.9em; height: 1.15em; }
   .boss-note {
     margin: 6px 0 0;
     text-align: center;
@@ -1102,7 +1103,7 @@
       <h2>遊ぶ前</h2>
       <ul>
         <li>文字数の最小と最大は、選んでいるリストにある文字数から選ぶ。その範囲だけ出る。選んでいるジャンルに、その文字数がひとつもないときは、そのジャンルにある文字数を全部出す。シングル、ダイス、ライフ3、激ムズで使う。</li>
-        <li>ジャンルは動物、魚類、料理、鳥、昆虫、花、果物、星座、楽器、元素、キャラクター、ポケモン、ことわざ、タンブルから、いくつでも選べる。ランキングに出るのは動物、魚類、料理、鳥、昆虫、花、果物、楽器、元素。元素は、よく知られたものだけ。動物には、哺乳類、有名な恐竜、爬虫類、両生類が入る。キャラクターの問題には、出ている作品の名前も出る。タンブルは、タンブルウィードの公演名。</li>
+        <li>ジャンルは動物、魚類、料理、鳥、昆虫、花、果物、星座、楽器、元素、キャラクター、ポケモン、ことわざ、タンブルから、いくつでも選べる。ランキングに出るのは動物、魚類、料理、鳥、昆虫、花、果物、楽器、元素。元素は、よく知られたものだけ。動物には、哺乳類、有名な恐竜、爬虫類、両生類が入る。キャラクターの問題には、出ている作品の名前も出る。タンブルは、タンブルウィードの公演名。江戸幕府の長い題は、シングルとライフ3の10問目に出る。</li>
         <li>ランキングの4モードは、動物、魚類、料理、鳥、昆虫、花、果物、楽器、元素の3〜9文字。</li>
         <li>別解がある問題は、最初から先頭の1文字が見える。</li>
         <li>10問正解するごとに、鳥が1羽増える。何羽でも増え続ける。画面の上、外側のほうにばらけて出る。ボタンと問題の文字には重ならない。50問目からはサングラスの鳥になる。タイトルの鳥ボタンで止められる。</li>
@@ -1198,7 +1199,7 @@
       </div>
       <form id="dock" autocomplete="off">
         <button type="button" id="hammer" aria-label="ブレイクハンマー" hidden>🔨</button>
-        <input id="answer" name="anagram-answer" lang="ja" inputmode="text" enterkeyhint="send" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" maxlength="32" aria-label="解答" placeholder="ひらがな・カタカナ">
+        <input id="answer" name="anagram-answer" lang="ja" inputmode="text" enterkeyhint="send" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" maxlength="80" aria-label="解答" placeholder="ひらがな・カタカナ">
         <button type="button" id="pass" hidden>パス</button>
         <button type="submit" id="send">解答</button>
       </form>

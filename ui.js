@@ -247,6 +247,10 @@
     };
     for (const id of ids) pushLines(genreSource(id), id);
     if (!fixed) pushLines(storageGet(WORDS_KEY) || "", "");
+    if (!fixed && (mode === "simple" || mode === "life") && ids.indexOf("tumble") >= 0) {
+      const tenth = String((window.ANAGRAM_GENRES || {}).tumbleQ10 || "").trim();
+      if (tenth) items.push({ text: tenth, genre: "tumble", reserve: 10 });
+    }
     return items;
   }
   function loadBest() {
@@ -701,6 +705,7 @@
     if (layout === "single" && !likeSimple(state.mode)) card.classList.add("span");
     if (puzzle.pool.length >= 12) card.classList.add("tight");
     if (puzzle.pool.length >= 18) card.classList.add("tighter");
+    if (puzzle.pool.length >= 40) card.classList.add("densest");
 
     const head = document.createElement("header");
     const q = document.createElement("span");

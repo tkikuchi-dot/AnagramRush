@@ -168,17 +168,19 @@
         text,
         genre: typeof raw.genre === "string" ? raw.genre : "",
         note: visibleNote(raw.note, text),
+        reserve: raw.reserve === 10 ? 10 : 0,
       };
     }
     const whole = cleanText(raw);
     const tab = whole.indexOf("\t");
     const text = tab < 0 ? whole : whole.slice(0, tab).trim();
     const note = tab < 0 ? "" : whole.slice(tab + 1).trim();
-    return { text, genre: "", note: visibleNote(note, text) };
+    return { text, genre: "", note: visibleNote(note, text), reserve: 0 };
   }
 
   function prepareDict(rawList) {
     const map = new Map();
+    const reserved = [];
     let skipped = 0;
     const list = Array.isArray(rawList) ? rawList : String(rawList || "").split(/\r?\n/);
     for (const raw of list) {
@@ -186,24 +188,31 @@
       const text = item.text;
       if (!text || text.startsWith("#")) continue;
       const chars = Array.from(text);
-      if (chars.length < RULES.minChars || chars.length > RULES.maxChars || !canScramble(chars)) {
+      const reservedWord = item.reserve === 10;
+      if (chars.length < RULES.minChars || (!reservedWord && chars.length > RULES.maxChars) || !canScramble(chars)) {
         skipped += 1;
         continue;
       }
       const match = norm(text);
-      if (!match || map.has(match)) {
-        if (map.has(match)) skipped += 1;
+      if (!match || map.has(match) || reserved.some((entry) => entry.match === match)) {
+        if (match) skipped += 1;
         continue;
       }
-      map.set(match, {
+      const entry = {
         text,
         match,
         chars,
         genre: item.genre,
         note: item.note || "",
+        reserve: reservedWord ? 10 : 0,
         key: chars.slice().sort().join("\u0001"),
         counts: countChars(chars),
-      });
+      };
+      if (reservedWord) {
+        reserved.push(entry);
+        continue;
+      }
+      map.set(match, entry);
     }
     const dict = Array.from(map.values());
     const groups = new Map();
@@ -211,7 +220,7 @@
       if (!groups.has(entry.key)) groups.set(entry.key, []);
       groups.get(entry.key).push(entry);
     }
-    return { dict, groups, skipped };
+    return { dict, groups, skipped, reserved };
   }
 
   function likeSimple(mode) {
@@ -711,7 +720,27 @@
     return createFromKind(state, spec.kind, spec);
   }
 
+  function reservedTenth(state) {
+    if (!state || state.nextNumber !== 10) return null;
+    if (state.mode !== "simple" && state.mode !== "life") return null;
+    const list = state.reserved || [];
+    for (const entry of list) {
+      if (entry.reserve === 10) return entry;
+    }
+    return null;
+  }
+
   function createFromBand(state, band) {
+    const tenth = reservedTenth(state);
+    if (tenth && state.mode === "life") {
+      return makePuzzle(state, [tenth], {
+        boss: true,
+        exclusive: true,
+        totalMs: KINDS.long.ms,
+        kind: "long",
+        form: null,
+      });
+    }
     if (!band) return createPuzzle(state, null);
     if (band.fixed) {
       return createFromKind(state, band.fixed, {
@@ -768,7 +797,16 @@
 
   function spawnSimple(state) {
     if (state.phase === "over" || state.simpleRemainMs <= 0 || state.active.length > 0) return;
-    const puzzle = createPuzzle(state, null);
+    const tenth = reservedTenth(state);
+    const puzzle = tenth
+      ? makePuzzle(state, [tenth], {
+        boss: false,
+        exclusive: false,
+        totalMs: RULES.normalMs,
+        kind: "",
+        form: null,
+      })
+      : createPuzzle(state, null);
     state.active.push(puzzle);
     state.nextNumber += 1;
     state.wordElapsedMs = 0;
@@ -786,6 +824,7 @@
       dict: prepared.dict,
       groups: prepared.groups,
       skipped: prepared.skipped,
+      reserved: prepared.reserved,
       rng: mulberry32(seed == null ? Math.floor(Math.random() * 1000000000) : seed),
       phase: "playing",
       active: [],

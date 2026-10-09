@@ -918,4 +918,54 @@ for (let seed = 1; seed <= 40; seed += 1) {
   assert.strictEqual(lifePause.active[0].remainMs, lifeBefore);
 }
 
+// The long Tumbleweed title is question 10 in simple and life, and stays out of the other modes.
+{
+  const edo = "モシモエドバクフガニジュウイッセイキニナッテモマダツヅイテイテナオカツナゾトキガダイリュウコウシテイタトシタラ";
+  const pack = PLAIN.concat([{ text: edo, genre: "tumble", reserve: 10 }]);
+  const prepared = G.prepareDict(pack);
+  assert.strictEqual(prepared.reserved.length, 1);
+  assert.ok(prepared.dict.every((entry) => entry.text !== edo));
+  assert.strictEqual(G.prepareDict([edo]).dict.length, 0);
+
+  function clearTo(state, number) {
+    let guard = 0;
+    while (state.phase !== "over" && state.active[0] && state.active[0].number < number) {
+      const word = state.active[0].parts[0].word;
+      assert.notStrictEqual(word, edo);
+      assert.strictEqual(G.submit(state, word).ok, true);
+      G.tick(state, 0);
+      guard += 1;
+      assert.ok(guard < 30);
+    }
+  }
+
+  const simple = fresh(pack, "simple", 3);
+  clearTo(simple, 10);
+  assert.strictEqual(simple.active[0].number, 10);
+  assert.strictEqual(simple.active[0].parts[0].word, edo);
+  assert.strictEqual(simple.active[0].boss, false);
+  assertScrambled(simple.active[0]);
+  assert.strictEqual(G.submit(simple, edo).ok, true);
+  G.tick(simple, 0);
+  assert.notStrictEqual(simple.active[0].parts[0].word, edo);
+
+  const life = fresh(pack, "life", 3);
+  clearTo(life, 10);
+  assert.strictEqual(life.active[0].number, 10);
+  assert.strictEqual(life.active[0].parts[0].word, edo);
+  assert.strictEqual(life.active[0].boss, true);
+  assert.strictEqual(life.active[0].exclusive, true);
+  assert.strictEqual(life.active[0].kind, "long");
+  assert.strictEqual(life.active[0].totalMs, 20000);
+
+  const rank10 = spawnNumber(fresh(pack, "rank", 3), 10);
+  assert.notStrictEqual(rank10.parts[0].word, edo);
+  const simplerank = fresh(pack, "simplerank", 3);
+  clearTo(simplerank, 10);
+  assert.notStrictEqual(simplerank.active[0].parts[0].word, edo);
+  const dice10 = spawnNumber(fresh(pack, "dice", 3), 10);
+  assert.strictEqual(dice10.kind, "d8");
+  assert.notStrictEqual(dice10.parts[0].word, edo);
+}
+
 console.log("ok", 34);
