@@ -14,7 +14,7 @@
     normalMs: 15000,
     maxSlots: 4,
     exclusiveUntil: 50,
-    bossMs: { 2: 25000, 3: 35000, 4: 45000 },
+    bossMs: { 2: 25000, 3: 35000 },
     bossClearBonusPerWord: 150,
     rankPoints: 100,
     minChars: 2,
@@ -169,13 +169,14 @@
         genre: typeof raw.genre === "string" ? raw.genre : "",
         note: visibleNote(raw.note, text),
         reserve: raw.reserve === 10 ? 10 : 0,
+        allowLong: raw.allowLong === true,
       };
     }
     const whole = cleanText(raw);
     const tab = whole.indexOf("\t");
     const text = tab < 0 ? whole : whole.slice(0, tab).trim();
     const note = tab < 0 ? "" : whole.slice(tab + 1).trim();
-    return { text, genre: "", note: visibleNote(note, text), reserve: 0 };
+    return { text, genre: "", note: visibleNote(note, text), reserve: 0, allowLong: false };
   }
 
   function prepareDict(rawList) {
@@ -189,7 +190,8 @@
       if (!text || text.startsWith("#")) continue;
       const chars = Array.from(text);
       const reservedWord = item.reserve === 10;
-      if (chars.length < RULES.minChars || (!reservedWord && chars.length > RULES.maxChars) || !canScramble(chars)) {
+      const longWord = item.allowLong === true && chars.length <= 80;
+      if (chars.length < RULES.minChars || ((!reservedWord && !longWord) && chars.length > RULES.maxChars) || !canScramble(chars)) {
         skipped += 1;
         continue;
       }
@@ -248,10 +250,9 @@
     "mix3-3": { ranges: [[3, 3], [3, 3], [3, 3]], boss: true, ms: 35000 },
     "mix3-45": { ranges: [[4, 5], [4, 5], [4, 5]], boss: true, ms: 35000 },
     "mix3-58": { ranges: [[5, 8], [5, 8], [5, 8]], boss: true, ms: 35000 },
-    mix4: { ranges: [[3, 5], [3, 5], [3, 5], [3, 5]], boss: true, ms: 45000 },
   };
 
-  const LIFE_LATE = ["normal", "mix2", "mix3-3", "mix3-45", "mix3-58", "mix4"];
+  const LIFE_LATE = ["normal", "mix2", "mix3-3", "mix3-45", "mix3-58"];
   const DICE_LATE = ["d4", "d6", "d8", "d12", "mix-d4", "mix-d6"];
 
   function slopeT(number) {
@@ -615,6 +616,25 @@
     return best;
   }
 
+  function drawOpenEntries(state, count) {
+    const active = activeMatches(state);
+    let source = state.dict.filter((entry) => !active.has(entry.match));
+    if (source.length < count) source = state.dict.slice();
+    const picked = [];
+    const seen = new Set();
+    for (const entry of shuffle(source, state.rng)) {
+      if (seen.has(entry.match)) continue;
+      seen.add(entry.match);
+      picked.push(entry);
+      if (picked.length === count) break;
+    }
+    if (picked.length) {
+      const chosen = new Set(picked.map((entry) => entry.match));
+      state.bag = state.bag.filter((entry) => !chosen.has(entry.match));
+    }
+    return picked;
+  }
+
   function makePuzzle(state, entries, options) {
     const parts = entries.map((entry) => ({
       word: entry.text,
@@ -665,6 +685,20 @@
     return 6;
   }
 
+  function fitDice(solid, letters, mix) {
+    const order = ["d4", "d6", "d8", "d12", "d20"];
+    let start = order.indexOf(solid);
+    if (start < 0) start = 0;
+    const count = Math.max(1, letters | 0);
+    for (let i = start; i < order.length; i += 1) {
+      const cap = faceCap(order[i]);
+      const need = Math.max(1, Math.ceil(count / cap));
+      if (need <= 4) return { solid: order[i], dice: need, mix: !!mix };
+    }
+    const cap = faceCap("d20");
+    return { solid: "d20", dice: Math.min(8, Math.max(1, Math.ceil(count / cap))), mix: !!mix };
+  }
+
   function clockMs(ms, rush) {
     if (!rush) return ms;
     return Math.max(4000, ms - 3000);
@@ -672,16 +706,19 @@
 
   function createFromKind(state, kindName, options) {
     const kind = KINDS[kindName];
-    let entries = drawKindEntries(state, kindName);
+    let entries = state.openLength
+      ? drawOpenEntries(state, kind.ranges.length)
+      : drawKindEntries(state, kindName);
     if (!entries.length) entries = [drawNormal(state)];
     const wanted = kind.ranges.length;
     let total = options.ms || kind.ms;
     if (entries.length < wanted && entries.length >= 2) total = RULES.bossMs[entries.length] || kind.ms;
     if (entries.length < 2 && !options.boss) total = RULES.normalMs;
     const boss = entries.length >= 2 ? !!options.boss || !!kind.boss : !!options.boss;
-    const form = kind.solid ? { solid: kind.solid, dice: kind.dice || 1, mix: !!kind.mix } : null;
-    if (form) {
-      const letters = entries.reduce((sum, entry) => sum + entry.chars.length, 0);
+    const letters = entries.reduce((sum, entry) => sum + entry.chars.length, 0);
+    let form = kind.solid ? { solid: kind.solid, dice: kind.dice || 1, mix: !!kind.mix } : null;
+    if (form && state.openLength) form = fitDice(form.solid, letters, form.mix);
+    else if (form) {
       const cap = faceCap(form.solid);
       while (letters > cap * form.dice && form.dice < 4) form.dice += 1;
     }
@@ -817,14 +854,14 @@
   function createGame(rawWords, mode, seed, options) {
     const opts = options || {};
     const prepared = prepareDict(rawWords);
-    const rank = mode === "rank";
     const state = {
       mode: mode === "rank" || mode === "simple" || mode === "simplerank" || mode === "dice" || mode === "dicerank" || mode === "life1" || mode === "extreme" ? mode : "life",
-      hints: rank ? false : opts.hints !== false,
+      hints: opts.hints !== false,
       dict: prepared.dict,
       groups: prepared.groups,
       skipped: prepared.skipped,
       reserved: prepared.reserved,
+      openLength: !!opts.openLength,
       rng: mulberry32(seed == null ? Math.floor(Math.random() * 1000000000) : seed),
       phase: "playing",
       active: [],

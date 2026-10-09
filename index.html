@@ -413,15 +413,17 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: safe center;
     gap: 48px;
     perspective: 900px;
+    overflow: auto;
   }
-  .dice-scene.count-2 { --die: 118px; gap: 36px; }
+  .dice-scene.count-2 { gap: 36px; }
   .dice-scene.count-2 .dice-row { gap: 40px; }
-  .dice-scene.count-3, .dice-scene.count-4 { --die: 92px; gap: 28px; }
+  .dice-scene.count-3, .dice-scene.count-4 { gap: 28px; }
   .dice-scene.count-3 .dice-row, .dice-scene.count-4 .dice-row { gap: 32px; }
-  .dice-scene.count-5, .dice-scene.count-6, .dice-scene.count-7, .dice-scene.count-8 { --die: 80px; gap: 22px; }
+  .dice-scene.count-4 .dice-row { gap: 12px; }
+  .dice-scene.count-5, .dice-scene.count-6, .dice-scene.count-7, .dice-scene.count-8 { gap: 22px; }
   .dice-scene.count-5 .dice-row, .dice-scene.count-6 .dice-row, .dice-scene.count-7 .dice-row, .dice-scene.count-8 .dice-row { gap: 26px; }
   .board.pair .dice-scene, .board.pyramid .dice-scene, .board.grid .dice-scene { --die: 68px; gap: 8px; }
   .board.pair .dice-scene .dice-row, .board.pyramid .dice-scene .dice-row, .board.grid .dice-scene .dice-row { gap: 8px; }
@@ -606,9 +608,10 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    align-content: center;
+    align-content: safe center;
     align-items: center;
     gap: 4px;
+    overflow: auto;
   }
   .tile {
     display: grid;
@@ -651,9 +654,6 @@
     height: 1.45em;
     padding: 0;
   }
-  .card.tight .tile, .card.span.tight .tile { font-size: clamp(14px, 4cqw, 24px); }
-  .card.tighter .tile, .card.span.tighter .tile { font-size: 13px; min-width: 1.05em; }
-  .card.densest .tile { font-size: 12px; min-width: 0.9em; height: 1.15em; }
   .boss-note {
     margin: 6px 0 0;
     text-align: center;
@@ -868,7 +868,7 @@
   .stats li { margin: 4px 0; }
   .result-actions { display: flex; gap: 8px; }
   @media (min-width: 720px) {
-    .modes { grid-template-columns: 1fr 1fr; }
+    #panel-standard { grid-template-columns: 1fr 1fr; }
   }
   .result .rank-box { width: min(440px, 100%); text-align: left; }
   @media (max-height: 560px) {
@@ -945,7 +945,7 @@
         <button type="button" class="genre" data-genre="tumble" aria-pressed="false">タンブル</button>
       </div>
       <p class="word-line" id="word-line">単語 —</p>
-      <p class="note" id="life-note" hidden>単語が4語未満だと、大きなボスは短くなります。</p>
+      <p class="note" id="life-note" hidden>単語が3語未満だと、大きなボスは短くなります。</p>
       <div class="volume-box">
         <label class="volume">BGM
           <input id="bgm-volume" type="range" min="0" max="100" value="30" aria-label="BGMの音量">
@@ -1053,7 +1053,7 @@
         <li>下の欄の左にあるブレイクハンマーを、消したい問題までドラッグする。</li>
         <li>1プレイに1回だけ使える。</li>
         <li>その問題はクリアになる。点数も入り、連続も続く。ライフは減らない。</li>
-        <li>消した問題の答えが、上の空いているところに出る。</li>
+        <li>上に「クリア」と出て、その問題の答えも出る。</li>
       </ul>
       <h2>シングル</h2>
       <ul>
@@ -1064,7 +1064,7 @@
       <h2>ダイス</h2>
       <ul>
         <li>ライフは3つ。文字数でサイコロの形が変わる。3〜4文字は正四面体、5〜6文字は立方体、7〜8文字は正八面体、9〜12文字は正十二面体、13〜20文字は正二十面体。</li>
-        <li>どの形も、問題が出ているあいだ回り続ける。回り方は5種類。余った面は空欄。</li>
+        <li>どの形も、問題が出ているあいだ回り続ける。回り方は5種類。余った面は空欄。タンブルだけのときは文字数を限らないので、入りきらないときはサイコロを増やす。</li>
         <li>最初の9問は四面体と立方体が1問ずつ。10問目のボスは八面体。11〜19問は四面体と立方体が2問まで。そこでは、正解すると0.5秒後に次が出る。</li>
         <li>20問目のボスは十二面体。21〜29問は四面体、立方体、八面体が3問まで。</li>
         <li>30問目のボスは四面体を2個並べ、2語を混ぜて書く。40問目のボスは立方体を2個並べ、2語を混ぜて書く。文字は片方のサイコロに固まらない。</li>
@@ -1077,7 +1077,7 @@
       <ul>
         <li>ライフは1つ。時間切れでライフが減ると、そこで終わり。</li>
         <li>最初から、ライフ3の81〜100問と同じ種類が4問まで出る。正解が増えるほど追加が速くなる。</li>
-        <li>出るのは、文字数を限らない問題、2語のミックス、3文字が3語、4〜5文字が3語、5〜8文字が3語、4語のミックス。</li>
+        <li>出るのは、文字数を限らない問題、2語のミックス、3文字が3語、4〜5文字が3語、5〜8文字が3語。</li>
         <li>正解が増えるほど上のボスが出やすくなり、やがてどの種類も同じくらい出る。</li>
         <li>文字数とジャンルは、タイトルで選んだもの。速さでも連続でも増える。</li>
       </ul>
@@ -1090,7 +1090,7 @@
         <li>30問目のボスは3文字の語が3つ混ざる。31〜39問は文字数を限らない問題と、20問のボスが4問まで。</li>
         <li>40問目のボスは4文字か5文字の語が3つ混ざる。41〜49問は文字数を限らない問題と、20問・30問のボス。正解してから次が出るまでが短い。</li>
         <li>50問目のボスは5〜8文字の語が3つ混ざる。</li>
-        <li>51問からは、文字数を限らない問題と20・30・40・50問のボスが出る。81問からは4語が混ざった問題も出る。4問まで。</li>
+        <li>51問からは、文字数を限らない問題と20・30・40・50問のボスが出る。混ざるのは3語まで。4問まで。</li>
         <li>100問以降は同じ種類。制限時間が3秒短くなり、答えるとすぐ次が出る。</li>
         <li>2問は横に2つ。3問は上に1つ、下に2つ。4問は2×2。</li>
         <li>答えは下の欄ひとつ。出ている問題のどれかに当たれば消える。</li>
@@ -1102,7 +1102,7 @@
       </ul>
       <h2>遊ぶ前</h2>
       <ul>
-        <li>文字数の最小と最大は、選んでいるリストにある文字数から選ぶ。その範囲だけ出る。選んでいるジャンルに、その文字数がひとつもないときは、そのジャンルにある文字数を全部出す。シングル、ダイス、ライフ3、激ムズで使う。</li>
+        <li>文字数の最小と最大は、選んでいるリストにある文字数から選ぶ。その範囲だけ出る。選んでいるジャンルに、その文字数がひとつもないときは、そのジャンルにある文字数を全部出す。タンブルだけを選んでいるときは、文字数を限らず出します。シングル、ダイス、ライフ3、激ムズで使う。</li>
         <li>ジャンルは動物、魚類、料理、鳥、昆虫、花、果物、星座、楽器、元素、キャラクター、ポケモン、ことわざ、タンブルから、いくつでも選べる。ランキングに出るのは動物、魚類、料理、鳥、昆虫、花、果物、楽器、元素。元素は、よく知られたものだけ。動物には、哺乳類、有名な恐竜、爬虫類、両生類が入る。キャラクターの問題には、出ている作品の名前も出る。タンブルは、タンブルウィードの公演名。江戸幕府の長い題は、シングルとライフ3の10問目に出る。</li>
         <li>ランキングの4モードは、動物、魚類、料理、鳥、昆虫、花、果物、楽器、元素の3〜9文字。</li>
         <li>別解がある問題は、最初から先頭の1文字が見える。</li>
@@ -1123,7 +1123,7 @@
       </ul>
       <h2>ライフ3（ランキング）</h2>
       <ul>
-        <li>ライフ3と同じ進み方。ジャンルは動物、魚類、料理、鳥、昆虫、花、果物、楽器、元素。文字数は3〜9、ヒントはオフ。</li>
+        <li>ライフ3と同じ進み方。ジャンルは動物、魚類、料理、鳥、昆虫、花、果物、楽器、元素。文字数は3〜9。制限時間の3分の1で先頭の1文字、3分の2で2文字目が出る。</li>
         <li>遊び方や中断の確認を開いても、画面を離れても、タイマーは止まらない。</li>
         <li>50問に到達すると、BGMが変わる。</li>
         <li>出題の段階はライフ3と同じ。文字数は3〜9の範囲で、その段階に近い長さが出る。</li>
@@ -1136,7 +1136,7 @@
       <ul>
         <li>ライフは1つ。時間切れでライフが減ると、そこで終わり。</li>
         <li>最初からライフ3の100問以降。4問まで出て、制限時間は3秒短く、答えるとすぐ次が出る。</li>
-        <li>種類は同じ割合。文字数を限らない問題と、2語・3語・4語のボス。</li>
+        <li>種類は同じ割合。文字数を限らない問題と、2語・3語のボス。</li>
         <li>ジャンルは動物、魚類、料理、鳥、昆虫、花、果物、楽器、元素。文字数は3〜9。速さで増える。連続では増えない。</li>
         <li>遊び方や中断の確認を開いても、画面を離れても、タイマーは止まらない。</li>
         <li>上位10件に入ると、名前を登録できる。載せないボタンもある。スコアの集まる場所は、ライフ3（ランキング）とは別。</li>
@@ -1152,7 +1152,7 @@
         <li>下の欄の左にあるブレイクハンマーを、消したい問題までドラッグする。</li>
         <li>1プレイに1回だけ使える。</li>
         <li>その問題はクリアになる。点数も入り、連続も続く。ライフは減らない。</li>
-        <li>消した問題の答えが、上の空いているところに出る。</li>
+        <li>上に「クリア」と出て、その問題の答えも出る。</li>
       </ul>
       <h2>スペース2回</h2>
       <ul>

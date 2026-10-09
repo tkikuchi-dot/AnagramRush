@@ -157,6 +157,14 @@
     for (const id of selectedGenres()) {
       for (const length of listLengths(genreSource(id))) seen.add(length);
     }
+    if (tumbleOnly()) {
+      const extra = String((window.ANAGRAM_GENRES || {}).tumbleLong || "").split(/\r?\n/).map((line) => ({
+        text: line.trim(),
+        genre: "tumble",
+        allowLong: true,
+      }));
+      for (const entry of G.prepareDict(extra).dict) seen.add(entry.chars.length);
+    }
     for (const length of listLengths(storageGet(WORDS_KEY) || "")) seen.add(length);
     const found = Array.from(seen).sort((a, b) => a - b);
     return found.length ? found : [G.RULES.minChars];
@@ -194,10 +202,15 @@
     if (!range) return true;
     return choices.some((n) => n >= range[0] && n <= range[1]);
   }
+  function tumbleOnly() {
+    const ids = selectedGenres();
+    return ids.length === 1 && ids[0] === "tumble";
+  }
   function selectedLength() {
     const choices = availableLengths();
     const low = choices[0];
     const high = choices[choices.length - 1];
+    if (tumbleOnly()) return [low, high];
     const stored = storedLength();
     if (!stored || !lengthInChoices(choices, stored)) return [low, high];
     let min = nearestLength(choices, stored[0], low);
@@ -226,6 +239,7 @@
   }
   function playItems(forRank, mode) {
     const fixed = forRank || mode === "life1" || mode === "dicerank" || mode === "simplerank";
+    const open = !fixed && tumbleOnly();
     const ids = fixed ? RANK_GENRES : selectedGenres();
     const range = fixed ? RANK_RANGE : selectedLength();
     const items = [];
@@ -242,12 +256,18 @@
         if (!word) continue;
         if (fixed && genre === "element" && !FAMOUS_ELEMENTS.has(word)) continue;
         const length = Array.from(word).length;
-        if (length < range[0] || length > range[1]) continue;
+        if (!open && (length < range[0] || length > range[1])) continue;
         items.push({ text: word, genre: genre, note: note });
       }
     };
     for (const id of ids) pushLines(genreSource(id), id);
     if (!fixed) pushLines(storageGet(WORDS_KEY) || "", "");
+    if (open) {
+      for (const line of String((window.ANAGRAM_GENRES || {}).tumbleLong || "").split(/\r?\n/)) {
+        const word = line.trim();
+        if (word) items.push({ text: word, genre: "tumble", allowLong: true });
+      }
+    }
     if (!fixed && (mode === "simple" || mode === "life") && ids.indexOf("tumble") >= 0) {
       const tenth = String((window.ANAGRAM_GENRES || {}).tumbleQ10 || "").trim();
       if (tenth) items.push({ text: tenth, genre: "tumble", reserve: 10 });
@@ -493,12 +513,15 @@
     const customCount = custom ? G.prepareDict(playItems(false).filter((item) => !item.genre)).dict.length : 0;
     const genreLabel = genres.map((id) => GENRE_LABEL[id]).join("・");
     const lengthLabel = range[0] === range[1] ? range[0] + "文字" : range[0] + "〜" + range[1] + "文字";
+    const openTumble = tumbleOnly();
     const lifted = !lengthInChoices(lengths, storedLength());
-    $("length-note").textContent = lifted
-      ? "選んだ文字数がこのジャンルにないので、ある文字数を全部出します。"
-      : "文字数とジャンルはスタンダードで使います。";
+    $("length-note").textContent = openTumble
+      ? "タンブルだけのときは、文字数を限らず出します。"
+      : lifted
+        ? "選んだ文字数がこのジャンルにないので、ある文字数を全部出します。"
+        : "文字数とジャンルはスタンダードで使います。";
     $("word-line").textContent = lengthLabel + "　" + genreLabel + " " + prepared.dict.length + "語" + (customCount ? "（登録 " + customCount + "）" : "");
-    $("life-note").hidden = prepared.dict.length >= 4;
+    $("life-note").hidden = prepared.dict.length >= 3;
     $("start-simple").disabled = prepared.dict.length < 1;
     $("start-dice").disabled = G.prepareDict(playItems(false, "dice")).dict.length < 1;
     $("start-life").disabled = prepared.dict.length < 1;
@@ -704,9 +727,6 @@
     if (puzzle.boss) card.classList.add("boss");
     card.dataset.slot = String(puzzle.slot);
     if (layout === "single" && !likeSimple(state.mode)) card.classList.add("span");
-    if (puzzle.pool.length >= 12) card.classList.add("tight");
-    if (puzzle.pool.length >= 18) card.classList.add("tighter");
-    if (puzzle.pool.length >= 40) card.classList.add("densest");
 
     const head = document.createElement("header");
     const q = document.createElement("span");
@@ -1136,7 +1156,7 @@
       toast("パスは1回だけです");
       shake($("pass"));
     } else if (ev.type === "hammer") {
-      showReveal(ev.words, "答え");
+      showReveal(ev.words, "クリア");
     } else if (ev.type === "spawn") {
       if (ev.boss) playSe("boss");
       if (ev.number === 50) showMilestone("50問到達！");
@@ -1283,7 +1303,9 @@
     if (token !== countToken) return;
     $("countdown").hidden = true;
     $("answer").value = "";
-    state = G.createGame(playItems(mode === "rank", mode), mode, Date.now() % 1000000000);
+    state = G.createGame(playItems(mode === "rank", mode), mode, Date.now() % 1000000000, {
+      openLength: tumbleOnly() && mode !== "rank" && mode !== "life1" && mode !== "dicerank" && mode !== "simplerank",
+    });
     if (!state.dict.length) {
       state = null;
       bgmOn = false;

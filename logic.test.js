@@ -396,7 +396,7 @@ for (let seed = 1; seed <= 40; seed += 1) {
   assert.strictEqual(state.active[0].boss, false);
 }
 
-// Not enough words shrinks the 4-word boss and its clock.
+// Not enough words shrinks the 3-word boss and its clock.
 {
   const state = fresh(["さくら", "さら"], "life", 1);
   const boss = spawnNumber(state, 40);
@@ -495,13 +495,14 @@ for (let seed = 1; seed <= 40; seed += 1) {
   assert.strictEqual(simple.phase, "playing");
 }
 
-// Ranking points stay flat, and the timed hint stays off.
+// Ranking points stay flat, and the timed hint still opens.
 {
   const state = fresh(PLAIN, "rank", 5);
-  assert.strictEqual(state.hints, false);
+  assert.strictEqual(state.hints, true);
   assert.strictEqual(state.mode, "rank");
   G.tick(state, 10000);
-  assert.strictEqual(state.active[0].parts[0].shown, 0);
+  assert.ok(state.active[0].parts[0].shown >= 1);
+  assert.strictEqual(state.active[0].parts[0].revealedByTime, true);
   G.submit(state, state.active[0].parts[0].word);
   assert.strictEqual(state.score, 100);
   G.tick(state, 16);
@@ -807,7 +808,7 @@ for (let seed = 1; seed <= 40; seed += 1) {
 }
 
 {
-  const lateKinds = ["normal", "mix2", "mix3-3", "mix3-45", "mix3-58", "mix4"];
+  const lateKinds = ["normal", "mix2", "mix3-3", "mix3-45", "mix3-58"];
   const low = G.kindWeights(lateKinds, 0);
   const mid = G.kindWeights(lateKinds, 0.5);
   const high = G.kindWeights(lateKinds, 1);
@@ -815,7 +816,7 @@ for (let seed = 1; seed <= 40; seed += 1) {
   assert.ok(low.mix2 > low["mix3-3"] && low["mix3-3"] > low["mix3-45"] && low["mix3-45"] > low["mix3-58"]);
   assert.ok(low.mix2 < 0.25);
   assert.ok(mid.mix2 > low.mix2 && mid.mix2 < high.mix2);
-  assert.ok(Math.abs(high.mix4 - 1) < 1e-9 && Math.abs(high.normal - high.mix2) < 1e-9);
+  assert.ok(Math.abs(high["mix3-58"] - 1) < 1e-9 && Math.abs(high.normal - high.mix2) < 1e-9);
   const extremeStart = G.questionBand("extreme", 1, 0);
   const extremeEven = G.questionBand("extreme", 3, 50);
   assert.strictEqual(extremeStart.slots, 4);
@@ -978,6 +979,28 @@ for (let seed = 1; seed <= 40; seed += 1) {
   const dice10 = spawnNumber(fresh(pack, "dice", 3), 10);
   assert.strictEqual(dice10.kind, "d8");
   assert.notStrictEqual(dice10.parts[0].word, edo);
+}
+
+// A long word stays out of the usual lists, and tumble-only dice grows to hold it.
+{
+  const chars = [];
+  for (let i = 0; i < 24; i += 1) chars.push("アイウエオク"[i % 6]);
+  const long = chars.join("");
+  const blocked = G.prepareDict([long]);
+  assert.strictEqual(blocked.dict.length, 0);
+  const kept = G.prepareDict([{ text: long, allowLong: true }]);
+  assert.strictEqual(kept.dict.length, 1);
+  assert.strictEqual(kept.dict[0].chars.length, 24);
+
+  const open = G.createGame([{ text: long, genre: "tumble", allowLong: true }], "dice", 1, { openLength: true });
+  const puzzle = open.active[0];
+  const cap = { d4: 4, d6: 6, d8: 8, d12: 12, d20: 20 }[puzzle.form.solid];
+  assert.ok(puzzle.form.dice > 1);
+  assert.ok(cap * puzzle.form.dice >= 24);
+  assert.strictEqual(puzzle.parts[0].word, long);
+
+  const closed = G.createGame(["ねこ", "いぬ", "うみ", { text: long, allowLong: true }], "dice", 1);
+  assert.ok(closed.active[0].parts[0].chars.length <= 6);
 }
 
 console.log("ok", 34);
