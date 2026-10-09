@@ -35,7 +35,11 @@
     font-family: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif;
     -webkit-text-size-adjust: 100%;
   }
-  body { overscroll-behavior: none; }
+  body {
+    overscroll-behavior: none;
+    display: flex;
+    justify-content: center;
+  }
   body::before {
     content: "";
     position: fixed;
@@ -65,7 +69,22 @@
   }
   .num { font-family: "Oxanium", "IBM Plex Sans JP", sans-serif; font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
   [hidden] { display: none !important; }
-  #app { position: relative; z-index: 1; height: var(--app-h); overflow: hidden; }
+  #app {
+    container: stage / size;
+    position: relative;
+    z-index: 1;
+    flex: none;
+    width: min(430px, 100%);
+    height: var(--app-h);
+    overflow: hidden;
+    background: var(--bg);
+  }
+  @media (min-width: 500px) {
+    #app {
+      border-inline: 1px solid rgba(62, 240, 255, 0.35);
+      box-shadow: 0 0 48px rgba(62, 240, 255, 0.12);
+    }
+  }
   .screen { height: 100%; overflow: auto; padding: calc(18px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom)); }
   .title-wrap, .sheet { max-width: 720px; margin: 0 auto; }
   .eyebrow {
@@ -100,7 +119,7 @@
     align-items: center;
     gap: 12px;
     margin: 8px 0;
-    font-size: clamp(28px, 8.2vw, 48px);
+    font-size: clamp(28px, 8.2cqw, 48px);
     line-height: 1;
     color: var(--ink);
     text-shadow: 0 0 18px rgba(62, 240, 255, 0.35);
@@ -240,7 +259,7 @@
   .help li, .sheet li { margin: 6px 0; }
   textarea {
     width: 100%;
-    min-height: 46vh;
+    min-height: 46cqh;
     font-size: 16px;
     line-height: 1.55;
     padding: 12px;
@@ -448,12 +467,78 @@
     backface-visibility: hidden;
   }
   .dice span.blank { color: transparent; text-shadow: none; }
-  .dice span:nth-child(1) { transform: translateZ(calc(var(--die) / 2)); }
-  .dice span:nth-child(2) { transform: rotateY(180deg) translateZ(calc(var(--die) / 2)); }
-  .dice span:nth-child(3) { transform: rotateY(90deg) translateZ(calc(var(--die) / 2)); }
-  .dice span:nth-child(4) { transform: rotateY(-90deg) translateZ(calc(var(--die) / 2)); }
-  .dice span:nth-child(5) { transform: rotateX(90deg) translateZ(calc(var(--die) / 2)); }
-  .dice span:nth-child(6) { transform: rotateX(-90deg) translateZ(calc(var(--die) / 2)); }
+  .dice.cube span:nth-child(1) { transform: translateZ(calc(var(--die) / 2)); }
+  .dice.cube span:nth-child(2) { transform: rotateY(180deg) translateZ(calc(var(--die) / 2)); }
+  .dice.cube span:nth-child(3) { transform: rotateY(90deg) translateZ(calc(var(--die) / 2)); }
+  .dice.cube span:nth-child(4) { transform: rotateY(-90deg) translateZ(calc(var(--die) / 2)); }
+  .dice.cube span:nth-child(5) { transform: rotateX(90deg) translateZ(calc(var(--die) / 2)); }
+  .dice.cube span:nth-child(6) { transform: rotateX(-90deg) translateZ(calc(var(--die) / 2)); }
+  .dice.poly { --radius: 0.28; --fw: 0.62; }
+  .dice.poly.solid-d4 { --radius: 0.16; --fw: 0.9; }
+  .dice.poly.solid-d8 { --radius: 0.24; --fw: 0.62; }
+  .dice.poly.solid-d12 { --radius: 0.46; --fw: 0.5; --fh: 0.48; }
+  .dice.poly.solid-d20 { --radius: 0.28; --fw: 0.4; }
+  .dice.poly span {
+    width: calc(var(--die) * var(--fw));
+    height: calc(var(--die) * var(--fw) * 0.866);
+    left: calc(50% - var(--die) * var(--fw) / 2);
+    top: calc(50% - var(--die) * var(--fw) * 0.866 * 0.667);
+    transform-origin: 50% 66.7%;
+    font-size: calc(var(--die) * var(--fw) * 0.42);
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    padding-top: 16%;
+  }
+  .dice.poly.solid-d12 span {
+    height: calc(var(--die) * var(--fh));
+    top: calc(50% - var(--die) * var(--fh) / 2);
+    transform-origin: center;
+    clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%);
+    padding-top: 8%;
+  }
+  .dice.poly.solid-d4 span:nth-child(1) { transform: rotateY(135deg) rotateX(-35.26deg) rotateZ(-120deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d4 span:nth-child(2) { transform: rotateY(45deg) rotateX(35.26deg) rotateZ(180deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d4 span:nth-child(3) { transform: rotateY(-45deg) rotateX(-35.26deg) rotateZ(120deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d4 span:nth-child(4) { transform: rotateY(-135deg) rotateX(35.26deg) rotateZ(-60deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d8 span:nth-child(1) { transform: rotateY(45deg) rotateX(-35.26deg) rotateZ(60deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d8 span:nth-child(2) { transform: rotateY(135deg) rotateX(-35.26deg) rotateZ(-60deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d8 span:nth-child(3) { transform: rotateY(45deg) rotateX(35.26deg) rotateZ(120deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d8 span:nth-child(4) { transform: rotateY(135deg) rotateX(35.26deg) rotateZ(-120deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d8 span:nth-child(5) { transform: rotateY(-45deg) rotateX(-35.26deg) rotateZ(-60deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d8 span:nth-child(6) { transform: rotateY(-135deg) rotateX(-35.26deg) rotateZ(60deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d8 span:nth-child(7) { transform: rotateY(-45deg) rotateX(35.26deg) rotateZ(-120deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d8 span:nth-child(8) { transform: rotateY(-135deg) rotateX(35.26deg) rotateZ(120deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d12 span:nth-child(1) { transform: rotateY(-90deg) rotateX(31.72deg) rotateZ(-72deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d12 span:nth-child(2) { transform: rotateY(-148.28deg) rotateX(0deg) rotateZ(18deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d12 span:nth-child(3) { transform: rotateY(180deg) rotateX(58.28deg) rotateZ(108deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d12 span:nth-child(4) { transform: rotateY(-31.72deg) rotateX(0deg) rotateZ(-18deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d12 span:nth-child(5) { transform: rotateY(0deg) rotateX(58.28deg) rotateZ(-108deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d12 span:nth-child(6) { transform: rotateY(-90deg) rotateX(-31.72deg) rotateZ(-108deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d12 span:nth-child(7) { transform: rotateY(180deg) rotateX(-58.28deg) rotateZ(72deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d12 span:nth-child(8) { transform: rotateY(0deg) rotateX(-58.28deg) rotateZ(-72deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d12 span:nth-child(9) { transform: rotateY(90deg) rotateX(31.72deg) rotateZ(72deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d12 span:nth-child(10) { transform: rotateY(148.28deg) rotateX(0deg) rotateZ(-18deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d12 span:nth-child(11) { transform: rotateY(31.72deg) rotateX(0deg) rotateZ(18deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d12 span:nth-child(12) { transform: rotateY(90deg) rotateX(-31.72deg) rotateZ(108deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(1) { transform: rotateY(-159.09deg) rotateX(0deg) rotateZ(-30deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(2) { transform: rotateY(159.09deg) rotateX(0deg) rotateZ(30deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(3) { transform: rotateY(-135deg) rotateX(35.26deg) rotateZ(-82.24deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(4) { transform: rotateY(135deg) rotateX(35.26deg) rotateZ(82.24deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(5) { transform: rotateY(-180deg) rotateX(69.09deg) rotateZ(-180deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(6) { transform: rotateY(-20.91deg) rotateX(0deg) rotateZ(30deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(7) { transform: rotateY(20.91deg) rotateX(0deg) rotateZ(-30deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(8) { transform: rotateY(-45deg) rotateX(35.26deg) rotateZ(82.24deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(9) { transform: rotateY(45deg) rotateX(35.26deg) rotateZ(-82.24deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(10) { transform: rotateY(0deg) rotateX(69.09deg) rotateZ(180deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(11) { transform: rotateY(-135deg) rotateX(-35.26deg) rotateZ(-97.76deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(12) { transform: rotateY(135deg) rotateX(-35.26deg) rotateZ(97.76deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(13) { transform: rotateY(180deg) rotateX(-69.09deg) rotateZ(0deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(14) { transform: rotateY(-45deg) rotateX(-35.26deg) rotateZ(97.76deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(15) { transform: rotateY(45deg) rotateX(-35.26deg) rotateZ(-97.76deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(16) { transform: rotateY(0deg) rotateX(-69.09deg) rotateZ(0deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(17) { transform: rotateY(-90deg) rotateX(20.91deg) rotateZ(-120deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(18) { transform: rotateY(-90deg) rotateX(-20.91deg) rotateZ(-60deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(19) { transform: rotateY(90deg) rotateX(20.91deg) rotateZ(120deg) translateZ(calc(var(--die) * var(--radius))); }
+.dice.poly.solid-d20 span:nth-child(20) { transform: rotateY(90deg) rotateX(-20.91deg) rotateZ(60deg) translateZ(calc(var(--die) * var(--radius))); }
   @keyframes dice-spin-a {
     0% { transform: rotateX(24deg) rotateY(40deg) rotateZ(-18deg); }
     17% { transform: rotateX(150deg) rotateY(-70deg) rotateZ(80deg); }
@@ -539,10 +624,10 @@
     text-shadow: 0 0 8px rgba(62, 240, 255, 0.55);
     font-weight: 900;
     line-height: 1;
-    font-size: clamp(16px, 4.8vw, 34px);
+    font-size: clamp(16px, 4.8cqw, 34px);
     animation: deal 0.22s both;
   }
-  .board.grid .tile, .board.pair .tile, .board.pyramid .tile { font-size: clamp(14px, 3.5vw, 22px); }
+  .board.grid .tile, .board.pair .tile, .board.pyramid .tile { font-size: clamp(14px, 3.5cqw, 22px); }
   .genre-tag {
     flex: 0 0 100%;
     margin: 8px 0 0;
@@ -555,7 +640,7 @@
   }
   .board.grid .genre-tag, .board.pair .genre-tag, .board.pyramid .genre-tag { margin-top: 4px; font-size: 16px; letter-spacing: 0.08em; }
   .card.span .genre-tag { font-size: 26px; }
-  .card.span .tile { font-size: clamp(28px, 9vw, 52px); }
+  .card.span .tile { font-size: clamp(28px, 9cqw, 52px); }
   .card.span .lengths { gap: 8px; }
   .card.span .lengths li { font-size: 20px; padding: 6px 12px; }
   .card.span .lengths b {
@@ -564,7 +649,7 @@
     height: 1.45em;
     padding: 0;
   }
-  .card.tight .tile, .card.span.tight .tile { font-size: clamp(14px, 4vw, 24px); }
+  .card.tight .tile, .card.span.tight .tile { font-size: clamp(14px, 4cqw, 24px); }
   .card.tighter .tile, .card.span.tighter .tile { font-size: 13px; min-width: 1.05em; }
   .boss-note {
     margin: 6px 0 0;
@@ -766,7 +851,7 @@
   }
   .result-score {
     margin: 0;
-    font-size: clamp(72px, 22vw, 128px);
+    font-size: clamp(72px, 22cqw, 128px);
     font-weight: 800;
     line-height: 0.9;
     color: var(--gold);
@@ -842,6 +927,15 @@
         <button type="button" class="genre on" data-genre="mammal" aria-pressed="true">哺乳類</button>
         <button type="button" class="genre on" data-genre="fish" aria-pressed="true">魚類</button>
         <button type="button" class="genre on" data-genre="food" aria-pressed="true">料理</button>
+        <button type="button" class="genre" data-genre="bird" aria-pressed="false">鳥</button>
+        <button type="button" class="genre" data-genre="insect" aria-pressed="false">昆虫</button>
+        <button type="button" class="genre" data-genre="dinosaur" aria-pressed="false">恐竜</button>
+        <button type="button" class="genre" data-genre="flower" aria-pressed="false">花</button>
+        <button type="button" class="genre" data-genre="fruit" aria-pressed="false">果物</button>
+        <button type="button" class="genre" data-genre="star" aria-pressed="false">星座</button>
+        <button type="button" class="genre" data-genre="instrument" aria-pressed="false">楽器</button>
+        <button type="button" class="genre" data-genre="element" aria-pressed="false">元素</button>
+        <button type="button" class="genre" data-genre="character" aria-pressed="false">キャラクター</button>
         <button type="button" class="genre" data-genre="pokemon" aria-pressed="false">ポケモン</button>
         <button type="button" class="genre" data-genre="proverb" aria-pressed="false">ことわざ</button>
       </div>
@@ -871,7 +965,7 @@
         <button type="button" id="start-dice" class="mode">
           <span class="kicker">♥ × 3</span>
           <span class="name">ダイス</span>
-          <span class="desc">回る立方体。ライフが尽きるまでのスコア</span>
+          <span class="desc">文字数で形が変わるサイコロ。ライフが尽きるまでのスコア</span>
           <span class="best num" id="best-dice">BEST —</span>
         </button>
         <button type="button" id="start-life" class="mode mode-life">
@@ -883,7 +977,7 @@
         <button type="button" id="start-extreme" class="mode mode-life">
           <span class="kicker">♥ × 1</span>
           <span class="name">激ムズ</span>
-          <span class="desc">最初から終盤。ライフが減ると終わり</span>
+          <span class="desc">81問以降の難度から。ライフが減ると終わり</span>
           <span class="best num" id="best-extreme">BEST —</span>
         </button>
       </div>
@@ -897,7 +991,7 @@
         <button type="button" id="start-dicerank" class="mode mode-rank">
           <span class="kicker">♥ × 3</span>
           <span class="name">ダイス</span>
-          <span class="desc">立方体。速さで伸びる。連続では増えない</span>
+          <span class="desc">形が変わるサイコロ。速さで伸びる。連続では増えない</span>
           <span class="best num" id="best-dicerank">TOP —</span>
         </button>
         <button type="button" id="start-rank" class="mode mode-rank">
@@ -909,7 +1003,7 @@
         <button type="button" id="start-life1" class="mode mode-rank">
           <span class="kicker">♥ × 1</span>
           <span class="name">激ムズ</span>
-          <span class="desc">最初から終盤。連続では増えない</span>
+          <span class="desc">100問以降の難度。連続では増えない</span>
           <span class="best num" id="best-life1">TOP —</span>
         </button>
         <div class="rank-box">
@@ -947,7 +1041,7 @@
         <li>タイトルで、BGMとSEの音量を別々に変えられる。</li>
         <li>問題の下に、その単語のジャンルが出る。</li>
         <li>同じ文字で別の単語が辞書にあるときは、最初から先頭の1文字が見える。</li>
-        <li>ボスがほかの問題に混ざるときは、ふつうの問題の方が出やすい。ボスは2語がいちばん多く、3語は少なく、4語はさらに少ない。100問に近づくと、ふつうの問題と2語・3語・4語のボスが同じくらい出る。</li>
+        <li>激ムズは、正解が増えるほど上のボスが出やすくなり、やがてどの種類も同じくらい出る。</li>
       </ul>
       <h2 id="help-hammer">ブレイクハンマー</h2>
       <ul>
@@ -964,43 +1058,50 @@
       </ul>
       <h2>ダイス</h2>
       <ul>
-        <li>進み方はライフ3と同じ。ライフ3つ、同時に出る数、ボス、点数も同じ。</li>
-        <li>問題は立方体。文字は6面に割り振る。余った面は空欄。6面を超えるときはサイコロを増やす。</li>
-        <li>問題が出ているあいだ、サイコロは回り続ける。回り方は5種類。</li>
-        <li>ボスもサイコロ。面が足りないときはサイコロを増やす。</li>
+        <li>ライフは3つ。文字数でサイコロの形が変わる。3〜4文字は正四面体、5〜6文字は立方体、7〜8文字は正八面体、9〜12文字は正十二面体、13〜20文字は正二十面体。</li>
+        <li>どの形も、問題が出ているあいだ回り続ける。回り方は5種類。余った面は空欄。</li>
+        <li>最初の9問は四面体と立方体が1問ずつ。10問目のボスは八面体。11〜19問は四面体と立方体が2問まで。そこでは、正解すると0.5秒後に次が出る。</li>
+        <li>20問目のボスは十二面体。21〜29問は四面体、立方体、八面体が3問まで。</li>
+        <li>30問目のボスは四面体を2個並べ、2語を混ぜて書く。40問目のボスは立方体を2個並べ、2語を混ぜて書く。文字は片方のサイコロに固まらない。</li>
+        <li>31〜39問は八面体までが4問まで。41〜49問は十二面体も入り、正解してから次が出るまでが短い。</li>
+        <li>50問目のボスは二十面体1個に、3語を載せる。</li>
+        <li>51問からは、そこまでの形と30問・40問のボスが4問まで出る。正解が増えるほど難しいボスが増え、100問で同じくらいになる。</li>
+        <li>100問以降は、制限時間が3秒短くなり、答えるとすぐ次が出る。</li>
       </ul>
       <h2>激ムズ</h2>
       <ul>
         <li>ライフは1つ。時間切れでライフが減ると、そこで終わり。</li>
-        <li>最初からライフ3の終盤。同時に4問まで出て、正解が増えるほど追加が速くなる。</li>
-        <li>文字の長さも、ボスの混ざり方も、最初からいちばん難しい状態。</li>
+        <li>最初から、ライフ3の81〜100問と同じ種類が4問まで出る。正解が増えるほど追加が速くなる。</li>
+        <li>出るのは、文字数を限らない問題、2語のミックス、3文字が3語、4〜5文字が3語、5〜8文字が3語、4語のミックス。</li>
+        <li>正解が増えるほど上のボスが出やすくなり、やがてどの種類も同じくらい出る。</li>
         <li>文字数とジャンルは、タイトルで選んだもの。速さでも連続でも増える。</li>
       </ul>
       <h2>ライフ3</h2>
       <ul>
-        <li>ライフは3つ。1問は15秒。時間切れでライフが1つ減る。</li>
-        <li>最初の10問は1問ずつ出る。</li>
-        <li>10問が終わると同時に2問まで。20問が終わると3問まで。30問が終わると4問まで。</li>
-        <li>正解が増えるほど、次の問題が出るまでの間隔は短くなっていく。</li>
+        <li>ライフは3つ。ふつうの問題は15秒。時間切れでライフが1つ減る。</li>
+        <li>最初の9問は1問ずつ、3〜6文字。10問目のボスは8文字以上の1語。</li>
+        <li>11〜19問は3〜8文字が2問まで。そこでは、正解すると0.5秒後に次が出る。</li>
+        <li>20問目のボスは2語が混ざった問題。21〜29問は3〜9文字が3問まで。</li>
+        <li>30問目のボスは3文字の語が3つ混ざる。31〜39問は文字数を限らない問題と、20問のボスが4問まで。</li>
+        <li>40問目のボスは4文字か5文字の語が3つ混ざる。41〜49問は文字数を限らない問題と、20問・30問のボス。正解してから次が出るまでが短い。</li>
+        <li>50問目のボスは5〜8文字の語が3つ混ざる。</li>
+        <li>51問からは、文字数を限らない問題と20・30・40・50問のボスが出る。81問からは4語が混ざった問題も出る。4問まで。</li>
+        <li>100問以降は同じ種類。制限時間が3秒短くなり、答えるとすぐ次が出る。</li>
         <li>2問は横に2つ。3問は上に1つ、下に2つ。4問は2×2。</li>
         <li>答えは下の欄ひとつ。出ている問題のどれかに当たれば消える。</li>
-        <li>10問目と20問目はボス。2語が混ざった問題が、画面に1問だけ出る（25秒）。</li>
-        <li>30問目のボスは3語（35秒）。40問目のボスは4語（45秒）。</li>
         <li>ボスは単語ごとの文字数が見える。文字数の上に、その単語のジャンルが出る。1語答えると、その文字が消える。</li>
-        <li>50問を超えると、ボスはほかの問題に混ざって出る。</li>
         <li>50問に到達すると、BGMが変わる。</li>
         <li>制限時間の3分の1で先頭の1文字、3分の2で2文字目が出る。</li>
-        <li>序盤は3〜5文字が多い。6文字以上はときどき。80問あたりで、どの長さも同じくらい出る。</li>
         <li>ライフが0になったときのスコアを競う。速いほど、連続するほど高い。</li>
         <li>エンターで間違えると、50問ごとに1回、ライフが1つ戻る。3つより増えない。</li>
       </ul>
       <h2>遊ぶ前</h2>
       <ul>
         <li>文字数の最小と最大は、選んでいるリストにある文字数から選ぶ。その範囲だけ出る。シングル、ダイス、ライフ3、激ムズで使う。</li>
-        <li>ジャンルは哺乳類、魚類、料理、ポケモン、ことわざから、いくつでも選べる。ポケモンとことわざはランキングに出ない。</li>
+        <li>ジャンルは哺乳類、魚類、料理、鳥、昆虫、恐竜、花、果物、星座、楽器、元素、キャラクター、ポケモン、ことわざから、いくつでも選べる。ランキングに出るのは哺乳類、魚類、料理。</li>
         <li>ランキングの4モードは、哺乳類、魚類、料理の3〜9文字。</li>
         <li>別解がある問題は、最初から先頭の1文字が見える。</li>
-        <li>10問正解するごとに、鳥が1羽増える。何羽でも増え続ける。空いているところに出て、ボタンや文字には重ならない。50問目からはサングラスの鳥になる。タイトルの鳥ボタンで止められる。</li>
+        <li>10問正解するごとに、鳥が1羽増える。何羽でも増え続ける。画面の上、外側のほうにばらけて出る。ボタンと問題の文字には重ならない。50問目からはサングラスの鳥になる。タイトルの鳥ボタンで止められる。</li>
       </ul>
       <h2>シングル（ランキング）</h2>
       <ul>
@@ -1011,7 +1112,7 @@
       </ul>
       <h2>ダイス（ランキング）</h2>
       <ul>
-        <li>見た目と進み方はダイスと同じ。ライフ3つ。ジャンルは哺乳類、魚類、料理。文字数は3〜9。</li>
+        <li>見た目と進み方はダイスと同じ。ライフ3つ。ジャンルは哺乳類、魚類、料理。文字数は3〜9なので、十二面体は9文字、二十面体のボスは近い長さになる。</li>
         <li>遊び方や中断の確認を開いても、画面を離れても、タイマーは止まらない。</li>
         <li>速さで増える。連続では増えない。上位10件に入ると、名前を登録できる。載せないボタンもある。</li>
       </ul>
@@ -1020,7 +1121,7 @@
         <li>ライフ3と同じ進み方。ジャンルは哺乳類、魚類、料理。文字数は3〜9、ヒントはオフ。</li>
         <li>遊び方や中断の確認を開いても、画面を離れても、タイマーは止まらない。</li>
         <li>50問に到達すると、BGMが変わる。</li>
-        <li>序盤は3〜5文字が多い。6文字以上はときどき。80問あたりで、どの長さも同じくらい出る。</li>
+        <li>出題の段階はライフ3と同じ。文字数は3〜9の範囲で、その段階に近い長さが出る。</li>
         <li>1語100点。速さでも連続でも増えない。</li>
         <li>エンターで間違えると、50問ごとに1回、ライフが1つ戻る。3つより増えない。</li>
         <li>上位10件に入ると、名前を登録できる。空欄のままなら「とくめいきぼう君」。載せないボタンもある。</li>
@@ -1029,8 +1130,8 @@
       <h2>激ムズ（ランキング）</h2>
       <ul>
         <li>ライフは1つ。時間切れでライフが減ると、そこで終わり。</li>
-        <li>最初からライフ3の終盤。同時に4問まで出て、正解が増えるほど追加が速くなる。</li>
-        <li>文字の長さも、ボスの混ざり方も、最初からいちばん難しい状態。</li>
+        <li>最初からライフ3の100問以降。4問まで出て、制限時間は3秒短く、答えるとすぐ次が出る。</li>
+        <li>種類は同じ割合。文字数を限らない問題と、2語・3語・4語のボス。</li>
         <li>ジャンルは哺乳類、魚類、料理。文字数は3〜9。速さで増える。連続では増えない。</li>
         <li>遊び方や中断の確認を開いても、画面を離れても、タイマーは止まらない。</li>
         <li>上位10件に入ると、名前を登録できる。載せないボタンもある。スコアの集まる場所は、ライフ3（ランキング）とは別。</li>
@@ -1141,6 +1242,7 @@
 <script src="logic.js"></script>
 <script src="words.js"></script>
 <script src="genres.js"></script>
+<script src="more-genres.js"></script>
 <script src="pokemon.js"></script>
 <script src="kotowaza.js"></script>
 <script src="ui.js"></script>

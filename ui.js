@@ -4,7 +4,7 @@
   const G = window.AnagramGame;
   const WORDS_KEY = "anagram.words.v1";
   const GENRES_KEY = "anagram.genres.v2";
-  const GENRE_IDS = ["mammal", "fish", "food", "pokemon", "proverb"];
+  const GENRE_IDS = ["mammal", "fish", "food", "bird", "insect", "dinosaur", "flower", "fruit", "star", "instrument", "element", "character", "pokemon", "proverb"];
   const RANK_GENRES = ["mammal", "fish", "food"];
   const LEVEL_KEY = "anagram.level.v1";
   const LEN_MIN_KEY = "anagram.lenmin.v1";
@@ -24,7 +24,22 @@
   const SIMPLE_RANK_URL = "https://anagram-2c857-default-rtdb.asia-southeast1.firebasedatabase.app/rankingSimple.json";
   const DEFAULT_RANK_NAME = "とくめいきぼう君";
   const RANK_NAME_MAX = 12;
-  const GENRE_LABEL = { mammal: "哺乳類", fish: "魚類", food: "料理", pokemon: "ポケモン", proverb: "ことわざ" };
+  const GENRE_LABEL = {
+    mammal: "哺乳類",
+    fish: "魚類",
+    food: "料理",
+    bird: "鳥",
+    insect: "昆虫",
+    dinosaur: "恐竜",
+    flower: "花",
+    fruit: "果物",
+    star: "星座",
+    instrument: "楽器",
+    element: "元素",
+    character: "キャラクター",
+    pokemon: "ポケモン",
+    proverb: "ことわざ",
+  };
   const RANK_RANGE = [3, 9];
   const $ = (id) => document.getElementById(id);
   function likeSimple(name) {
@@ -696,10 +711,12 @@
     if (!useDice) card.appendChild(tiles);
 
     if (puzzle.boss) {
-      const note = document.createElement("p");
-      note.className = "boss-note";
-      note.textContent = "一単語ずつ解答しよう！";
-      card.appendChild(note);
+      if (puzzle.parts.length > 1) {
+        const note = document.createElement("p");
+        note.className = "boss-note";
+        note.textContent = "一単語ずつ解答しよう！";
+        card.appendChild(note);
+      }
       const list = document.createElement("ul");
       list.className = "lengths";
       for (const part of puzzle.parts) {
@@ -752,37 +769,44 @@
     return tag;
   }
 
-  function splitDice(chars) {
-    const list = chars.slice();
-    const count = Math.max(1, Math.ceil(list.length / 6));
-    const base = Math.floor(list.length / count);
-    let extra = list.length % count;
+  function facePlan(puzzle) {
+    const form = puzzle.form || { solid: "d6", dice: Math.max(1, Math.ceil(puzzle.pool.length / 6)), mix: false };
+    const solid = form.solid || "d6";
+    const faces = solid === "d4" ? 4 : solid === "d8" ? 8 : solid === "d12" ? 12 : solid === "d20" ? 20 : 6;
+    const count = Math.max(1, form.dice || 1);
     const groups = [];
-    let index = 0;
-    for (let die = 0; die < count; die += 1) {
-      const take = base + (extra > 0 ? 1 : 0);
-      if (extra > 0) extra -= 1;
-      const faces = [];
-      for (let face = 0; face < 6; face += 1) faces.push(face < take ? list[index++] : "");
-      groups.push(faces);
+    for (let die = 0; die < count; die += 1) groups.push(Array.from({ length: faces }, () => ""));
+    const letters = puzzle.pool;
+    if (form.mix && count > 1) {
+      letters.forEach((ch, index) => {
+        const die = index % count;
+        const face = Math.floor(index / count);
+        if (face < faces) groups[die][face] = ch;
+      });
+    } else {
+      let index = 0;
+      for (let die = 0; die < count && index < letters.length; die += 1) {
+        for (let face = 0; face < faces && index < letters.length; face += 1) groups[die][face] = letters[index++];
+      }
     }
-    return groups;
+    return { solid, groups };
   }
 
   function appendDice(parent, puzzle, tag) {
-    const groups = splitDice(puzzle.pool);
+    const plan = facePlan(puzzle);
     const scene = document.createElement("div");
-    scene.className = "dice-scene count-" + groups.length;
+    scene.className = "dice-scene count-" + plan.groups.length + " solid-" + plan.solid;
     const row = document.createElement("div");
     row.className = "dice-row";
-    const spin = ["a", "b", "c", "d", "e"][(puzzle.number - 1) % 5];
+    const spin = ["a", "b", "c", "d", "e"][(puzzle.number + plan.groups.length) % 5];
     const laps = spin === "d" ? 3 : 2;
-    for (const faces of groups) {
+    plan.groups.forEach((faces, index) => {
       const slot = document.createElement("div");
       slot.className = "die-slot";
       const die = document.createElement("div");
-      die.className = "dice spin-" + spin;
+      die.className = "dice " + (plan.solid === "d6" ? "cube" : "poly solid-" + plan.solid) + " spin-" + ["a", "b", "c", "d", "e"][(puzzle.number + index) % 5];
       die.style.animationDuration = (puzzle.totalMs / (laps * 1000)) + "s";
+      die.style.animationDelay = (-index * 0.4) + "s";
       for (const ch of faces) {
         const face = document.createElement("span");
         if (!ch) face.classList.add("blank");
@@ -791,7 +815,7 @@
       }
       slot.appendChild(die);
       row.appendChild(slot);
-    }
+    });
     scene.appendChild(row);
     if (tag) scene.appendChild(tag);
     parent.appendChild(scene);
@@ -880,9 +904,8 @@
   }
   function birdObstacles() {
     const boxes = [];
-    const nodes = $("screen-play").querySelectorAll("button, input, #hud-score, #hud-sub, #clock, #hearts, #reveal, #banner, #milestone, #quitbar, .hud-links, .card header, .tile, .dice, .genre-tag, .lengths, .boss-note, .badge, .time, .first-letter, .bar");
+    const nodes = $("screen-play").querySelectorAll("button, #answer, #reveal, #banner, #quitbar, .tile, .dice, .genre-tag, .lengths, .first-letter, .boss-note");
     for (const node of nodes) {
-      if (node.classList.contains("mascot")) continue;
       const box = shownBox(node);
       if (box) boxes.push(box);
     }
@@ -898,30 +921,16 @@
     if (!width || !height) return null;
     return { left, top, right: left + width, bottom: top + height };
   }
-  function findBirdSpots(hostRect, blocked, gap) {
-    for (let scale = 1; scale >= 0.35; scale -= 0.05) {
-      const width = 104 * scale;
-      const height = 78 * scale;
-      const found = [];
-      for (let y = hostRect.top + 4; y + height <= hostRect.bottom - 4; y += 14) {
-        for (let x = hostRect.left + 4; x + width <= hostRect.right - 4; x += 14) {
-          const rect = { left: x, top: y, right: x + width, bottom: y + height };
-          if (blocked.some((box) => boxesOverlap(rect, box, gap))) continue;
-          found.push({ x: x - hostRect.left, y: y - hostRect.top, scale: scale });
-        }
-      }
-      if (found.length) return found;
-    }
-    return [];
-  }
-  function otherBirdBoxes(bird, host) {
-    const boxes = [];
-    for (const other of birdNodes) {
-      if (other === bird) continue;
-      const box = birdRect(other.el, host);
-      if (box) boxes.push(box);
-    }
-    return boxes;
+  function outerBirdPoint(maxX, maxY) {
+    const side = Math.floor(Math.random() * 4);
+    const alongX = Math.random() * maxX;
+    const alongY = Math.random() * maxY;
+    const depthX = Math.random() * maxX * 0.42;
+    const depthY = Math.random() * maxY * 0.42;
+    if (side === 0) return { x: alongX, y: depthY };
+    if (side === 1) return { x: alongX, y: Math.max(0, maxY - depthY) };
+    if (side === 2) return { x: depthX, y: alongY };
+    return { x: Math.max(0, maxX - depthX), y: alongY };
   }
   function paintBird(bird, spot) {
     bird.spot = spot;
@@ -935,44 +944,61 @@
     const el = bird.el;
     const host = $("mascots");
     const hostRect = host.getBoundingClientRect();
-    if (hostRect.width < 1 || hostRect.height < 1) return;
-    const gap = 8;
+    const width = 104;
+    const height = 78;
+    if (hostRect.width < width || hostRect.height < height) return;
+    const gap = 4;
     const ui = birdObstacles();
     const current = birdRect(el, host);
     if (!forceNew && current && !ui.some((box) => boxesOverlap(current, box, gap))) return;
-    const anchors = [];
+    const maxX = hostRect.width - width;
+    const maxY = hostRect.height - height;
+    const others = [];
     for (const other of birdNodes) {
-      if (other !== bird && other.spot) anchors.push(other.spot);
+      if (other !== bird && other.spot) others.push(other.spot);
     }
-    let pool = findBirdSpots(hostRect, ui.concat(otherBirdBoxes(bird, host)), gap);
-    if (!pool.length) pool = findBirdSpots(hostRect, ui, gap);
-    if (!pool.length && anchors.length) {
-      const anchor = anchors[anchors.length - 1];
-      const shift = (birdNodes.indexOf(bird) % 6) * 12;
-      const piled = {
-        x: Math.max(4, Math.min(anchor.x + shift, hostRect.width - 104 * anchor.scale - 4)),
-        y: Math.max(4, Math.min(anchor.y + shift, hostRect.height - 78 * anchor.scale - 4)),
-        scale: anchor.scale,
-      };
+    const fits = (x, y) => {
       const rect = {
-        left: hostRect.left + piled.x,
-        top: hostRect.top + piled.y,
-        right: hostRect.left + piled.x + 104 * piled.scale,
-        bottom: hostRect.top + piled.y + 78 * piled.scale,
+        left: hostRect.left + x,
+        top: hostRect.top + y,
+        right: hostRect.left + x + width,
+        bottom: hostRect.top + y + height,
       };
-      paintBird(bird, ui.some((box) => boxesOverlap(rect, box, gap)) ? anchor : piled);
+      return !ui.some((box) => boxesOverlap(rect, box, gap));
+    };
+    const spread = (x, y) => {
+      let nearest = 10000;
+      for (const spot of others) nearest = Math.min(nearest, Math.hypot(x - spot.x, y - spot.y));
+      return nearest;
+    };
+    let best = null;
+    let bestSpread = -1;
+    const consider = (x, y) => {
+      if (!fits(x, y)) return;
+      const space = spread(x, y);
+      if (space > bestSpread) {
+        bestSpread = space;
+        best = { x: x, y: y };
+      }
+    };
+    for (let i = 0; i < 140; i += 1) {
+      const point = outerBirdPoint(maxX, maxY);
+      consider(point.x, point.y);
+    }
+    if (!best) {
+      const step = 22;
+      for (let y = 0; y <= maxY; y += step) {
+        for (let x = 0; x <= maxX; x += step) {
+          const edge = x < maxX * 0.34 || x > maxX * 0.66 || y < maxY * 0.34 || y > maxY * 0.66;
+          if (edge) consider(x, y);
+        }
+      }
+    }
+    if (!best) {
+      el.hidden = true;
       return;
     }
-    if (!pool.length) {
-      if (!current || ui.some((box) => boxesOverlap(current, box, gap))) el.hidden = true;
-      return;
-    }
-    let choices = pool;
-    if (forceNew && anchors.length && pool.length > 1) {
-      const away = pool.filter((spot) => anchors.every((anchor) => Math.abs(spot.x - anchor.x) > 48 || Math.abs(spot.y - anchor.y) > 48));
-      if (away.length) choices = away;
-    }
-    paintBird(bird, choices[Math.floor(Math.random() * choices.length)]);
+    paintBird(bird, { x: best.x, y: best.y, scale: 1 });
   }
   function applyBirdFile(el, file) {
     if (el.dataset.file === file) return;
@@ -1285,7 +1311,7 @@
 
   function onAnswer() {
     const now = performance.now();
-    if (now - sentAt < 40) return;
+    if (now - sentAt < 150) return;
     if (!state || state.phase === "over" || state.paused) return;
     sentAt = now;
     const value = $("answer").value;
@@ -1478,13 +1504,24 @@
     abandon();
   });
   $("skip-rank").addEventListener("click", declineRank);
+  let rankOnEnter = false;
+  $("rank-name").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    if (event.isComposing || nameComposing || event.keyCode === 229) rankOnEnter = true;
+  });
   $("rank-name-form").addEventListener("submit", (event) => {
     event.preventDefault();
     if (nameComposing) return;
+    rankOnEnter = false;
     commitRankName($("rank-name").value);
   });
   $("rank-name").addEventListener("compositionstart", () => { nameComposing = true; });
-  $("rank-name").addEventListener("compositionend", () => { nameComposing = false; });
+  $("rank-name").addEventListener("compositionend", () => {
+    nameComposing = false;
+    if (!rankOnEnter) return;
+    rankOnEnter = false;
+    commitRankName($("rank-name").value);
+  });
   $("quit").addEventListener("click", () => {
     if (!state) {
       if (!$("countdown").hidden) abandon();
@@ -1549,16 +1586,24 @@
     pump();
     $("answer").focus();
   });
+  let answerOnEnter = false;
+  $("answer").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    if (event.isComposing || composing || event.keyCode === 229) answerOnEnter = true;
+  });
   $("dock").addEventListener("submit", (event) => {
     event.preventDefault();
-    if (composing) {
-      setTimeout(() => { if (!composing) onAnswer(); }, 0);
-      return;
-    }
+    if (composing) return;
+    answerOnEnter = false;
     onAnswer();
   });
   $("answer").addEventListener("compositionstart", () => { composing = true; });
-  $("answer").addEventListener("compositionend", () => { composing = false; });
+  $("answer").addEventListener("compositionend", () => {
+    composing = false;
+    if (!answerOnEnter) return;
+    answerOnEnter = false;
+    onAnswer();
+  });
   $("screen-play").addEventListener("pointerdown", (event) => {
     if (event.target.closest("button, input, textarea, a")) return;
     event.preventDefault();

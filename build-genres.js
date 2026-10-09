@@ -115,7 +115,9 @@ function keepFamous(name, list) {
   const have = new Set(list);
   const missing = famous[name].filter((word) => !have.has(word));
   const kept = list.filter((word) => allow.has(word));
-  if (missing.length) console.log(name, "not in source:", missing.join(" "));
+  for (const word of missing) kept.push(word);
+  kept.sort((a, b) => a.localeCompare(b, "ja"));
+  if (missing.length) console.log(name, "kept outside source:", missing.length);
   return kept;
 }
 

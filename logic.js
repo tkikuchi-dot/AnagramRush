@@ -18,7 +18,7 @@
     bossClearBonusPerWord: 150,
     rankPoints: 100,
     minChars: 2,
-    maxChars: 16,
+    maxChars: 20,
     shortChars: 5,
     flatAt: 80,
     longWeightAtStart: 0.32,
@@ -207,50 +207,105 @@
     return mode === "life1" || mode === "extreme";
   }
 
-  function bossMixWeights(questionNumber) {
-    const startAt = RULES.exclusiveUntil + 1;
-    const span = Math.max(1, RULES.bossFlatAt - startAt);
-    const t = Math.min(1, Math.max(0, ((questionNumber || startAt) - startAt) / span));
-    const start = RULES.bossWeightAtStart;
-    const weight = (key) => {
-      const from = start[key];
-      return from + (1 - from) * t;
-    };
-    return { normal: weight("normal"), 2: weight(2), 3: weight(3), 4: weight(4) };
+  const KINDS = {
+    d4: { ranges: [[3, 4]], solid: "d4", dice: 1, ms: 15000 },
+    d6: { ranges: [[5, 6]], solid: "d6", dice: 1, ms: 15000 },
+    d8: { ranges: [[7, 8]], solid: "d8", dice: 1, ms: 15000 },
+    d12: { ranges: [[9, 12]], solid: "d12", dice: 1, ms: 15000 },
+    "mix-d4": { ranges: [[3, 4], [3, 4]], solid: "d4", dice: 2, mix: true, boss: true, ms: 25000 },
+    "mix-d6": { ranges: [[5, 6], [5, 6]], solid: "d6", dice: 2, mix: true, boss: true, ms: 25000 },
+    "mix-d20": { ranges: [[3, 8], [3, 8], [3, 8]], sum: [13, 20], solid: "d20", dice: 1, mix: true, boss: true, ms: 35000 },
+    len36: { ranges: [[3, 6]], ms: 15000 },
+    len38: { ranges: [[3, 8]], ms: 15000 },
+    len39: { ranges: [[3, 9]], ms: 15000 },
+    normal: { ranges: [[3, 20]], ms: 15000 },
+    long: { ranges: [[8, 20]], boss: true, ms: 20000 },
+    mix2: { ranges: [[3, 8], [3, 8]], boss: true, ms: 25000 },
+    "mix3-3": { ranges: [[3, 3], [3, 3], [3, 3]], boss: true, ms: 35000 },
+    "mix3-45": { ranges: [[4, 5], [4, 5], [4, 5]], boss: true, ms: 35000 },
+    "mix3-58": { ranges: [[5, 8], [5, 8], [5, 8]], boss: true, ms: 35000 },
+    mix4: { ranges: [[3, 5], [3, 5], [3, 5], [3, 5]], boss: true, ms: 45000 },
+  };
+
+  const LIFE_LATE = ["normal", "mix2", "mix3-3", "mix3-45", "mix3-58", "mix4"];
+  const DICE_LATE = ["d4", "d6", "d8", "d12", "mix-d4", "mix-d6"];
+
+  function slopeT(number) {
+    const n = Math.max(0, number | 0);
+    if (n >= 100) return 1;
+    if (n <= 51) return 0;
+    return (n - 51) / (100 - 51);
   }
 
-  function pickBossMix(questionNumber, rng) {
-    const weights = bossMixWeights(questionNumber);
-    const keys = ["normal", 2, 3, 4];
-    let total = 0;
-    for (const key of keys) total += weights[key];
-    let roll = rng() * total;
-    let chosen = "normal";
-    for (const key of keys) {
-      roll -= weights[key];
-      if (roll < 0) {
-        chosen = key;
-        break;
+  function diceBand(number) {
+    const n = Math.max(1, number | 0);
+    if (n <= 9) return { kinds: ["d4", "d6"], slots: 1 };
+    if (n === 10) return { fixed: "d8", exclusive: true, slots: 1, ms: 18000 };
+    if (n <= 19) return { kinds: ["d4", "d6"], slots: 2, fastGap: true };
+    if (n === 20) return { fixed: "d12", exclusive: true, slots: 1, ms: 22000 };
+    if (n <= 29) return { kinds: ["d4", "d6", "d8"], slots: 3 };
+    if (n === 30) return { fixed: "mix-d4", exclusive: true, slots: 1 };
+    if (n <= 39) return { kinds: ["d4", "d6", "d8"], slots: 4 };
+    if (n === 40) return { fixed: "mix-d6", exclusive: true, slots: 1 };
+    if (n <= 49) return { kinds: ["d4", "d6", "d8", "d12"], slots: 4, shorten: true };
+    if (n === 50) return { fixed: "mix-d20", exclusive: true, slots: 1 };
+    if (n <= 80) return { kinds: ["d4", "d6", "d8", "d12", "mix-d4"], slots: 4, t: slopeT(n) };
+    if (n < 100) return { kinds: DICE_LATE.slice(), slots: 4, t: slopeT(n) };
+    return { kinds: DICE_LATE.slice(), slots: 4, t: 1, rush: true };
+  }
+
+  function lifeBand(number) {
+    const n = Math.max(1, number | 0);
+    if (n <= 9) return { kinds: ["len36"], slots: 1 };
+    if (n === 10) return { fixed: "long", exclusive: true, slots: 1 };
+    if (n <= 19) return { kinds: ["len38"], slots: 2, fastGap: true };
+    if (n === 20) return { fixed: "mix2", exclusive: true, slots: 1 };
+    if (n <= 29) return { kinds: ["len39"], slots: 3 };
+    if (n === 30) return { fixed: "mix3-3", exclusive: true, slots: 1 };
+    if (n <= 39) return { kinds: ["normal", "mix2"], slots: 4, t: 0.15 };
+    if (n === 40) return { fixed: "mix3-45", exclusive: true, slots: 1 };
+    if (n <= 49) return { kinds: ["normal", "mix2", "mix3-3"], slots: 4, t: 0.35, shorten: true };
+    if (n === 50) return { fixed: "mix3-58", exclusive: true, slots: 1 };
+    if (n <= 80) return { kinds: ["normal", "mix2", "mix3-3", "mix3-45", "mix3-58"], slots: 4, t: slopeT(n) };
+    if (n < 100) return { kinds: LIFE_LATE.slice(), slots: 4, t: slopeT(n) };
+    return { kinds: LIFE_LATE.slice(), slots: 4, t: 1, rush: true };
+  }
+
+  function questionBand(mode, number, correct) {
+    if (likeSimple(mode)) return null;
+    if (mode === "extreme") {
+      const answered = Math.max(0, correct | 0);
+      return { kinds: LIFE_LATE.slice(), slots: 4, t: Math.min(1, answered / 50) };
+    }
+    const n = mode === "life1" ? Math.max(number | 0, 100) : number;
+    if (mode === "dice" || mode === "dicerank") return diceBand(n);
+    return lifeBand(n);
+  }
+
+  function kindWeights(kinds, t) {
+    const weights = {};
+    let bossRank = 0;
+    for (const kind of kinds) {
+      if (!KINDS[kind] || !KINDS[kind].boss || t == null) weights[kind] = 1;
+      else {
+        bossRank += 1;
+        const start = 0.2 / bossRank;
+        weights[kind] = start + (1 - start) * t;
       }
     }
-    if (chosen === "normal") return null;
-    return { size: chosen, ms: RULES.bossMs[chosen], exclusive: false };
+    return weights;
   }
 
   function paceNumber(state) {
     return lateGame(state.mode) ? Math.max(state.nextNumber, RULES.bossFlatAt) : state.nextNumber;
   }
 
-  function bossSpec(questionNumber, mode, rng) {
-    if (lateGame(mode)) questionNumber = Math.max(questionNumber || 1, RULES.bossFlatAt);
-    if (likeSimple(mode)) return null;
-    if (questionNumber > 0 && questionNumber < RULES.exclusiveUntil && questionNumber % 10 === 0) {
-      const size = questionNumber >= 40 ? 4 : questionNumber >= 30 ? 3 : 2;
-      return { size, ms: RULES.bossMs[size], exclusive: true };
-    }
-    if (questionNumber <= RULES.exclusiveUntil) return null;
-    if (!rng) return null;
-    return pickBossMix(questionNumber, rng);
+  function nextGap(state) {
+    const band = questionBand(state.mode, state.nextNumber, state.correct);
+    const base = spawnIntervalMs(spawnPace(state));
+    if (band && (band.rush || state.mode === "life1")) return 0;
+    if (band && band.shorten) return Math.max(400, Math.round(base * 0.45));
+    return base;
   }
 
   function spawnPace(state) {
@@ -470,12 +525,70 @@
   }
 
   function maxSlotsFor(state) {
-    if (lateGame(state.mode)) return 4;
-    const done = finishedCount(state);
-    if (done >= 30) return 4;
-    if (done >= 20) return 3;
-    if (done >= 10) return 2;
-    return 1;
+    const band = questionBand(state.mode, state.nextNumber, state.correct);
+    if (!band) return 1;
+    return band.slots || 1;
+  }
+
+  function poolForRange(state, min, max, used) {
+    const fit = state.dict.filter((entry) => !used.has(entry.match) && entry.chars.length >= min && entry.chars.length <= max);
+    if (fit.length) return fit;
+    const rest = state.dict.filter((entry) => !used.has(entry.match));
+    if (!rest.length) return [];
+    let best = Infinity;
+    for (const entry of rest) {
+      const distance = entry.chars.length < min ? min - entry.chars.length : Math.max(0, entry.chars.length - max);
+      if (distance < best) best = distance;
+    }
+    return rest.filter((entry) => {
+      const distance = entry.chars.length < min ? min - entry.chars.length : Math.max(0, entry.chars.length - max);
+      return distance === best;
+    });
+  }
+
+  function drawRange(state, min, max, used) {
+    const pool = poolForRange(state, min, max, used);
+    if (!pool.length) return null;
+    return pool[Math.floor(state.rng() * pool.length)];
+  }
+
+  function drawKindEntries(state, kindName) {
+    const kind = KINDS[kindName];
+    const used = activeMatches(state);
+    const attempts = kind.sum ? 28 : 1;
+    let best = [];
+    let bestDistance = Infinity;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const picked = [];
+      const seen = new Set(used);
+      for (const range of kind.ranges) {
+        const entry = drawRange(state, range[0], range[1], seen);
+        if (!entry) break;
+        seen.add(entry.match);
+        picked.push(entry);
+      }
+      if (!picked.length) continue;
+      if (!kind.sum || picked.length < kind.ranges.length) {
+        best = picked;
+        break;
+      }
+      const total = picked.reduce((sum, entry) => sum + entry.chars.length, 0);
+      if (total >= kind.sum[0] && total <= kind.sum[1]) {
+        best = picked;
+        break;
+      }
+      const target = (kind.sum[0] + kind.sum[1]) / 2;
+      const distance = Math.abs(total - target);
+      if (distance < bestDistance) {
+        best = picked;
+        bestDistance = distance;
+      }
+    }
+    if (best.length) {
+      const chosen = new Set(best.map((entry) => entry.match));
+      state.bag = state.bag.filter((entry) => !chosen.has(entry.match));
+    }
+    return best;
   }
 
   function makePuzzle(state, entries, options) {
@@ -507,6 +620,8 @@
       slot: takeSlot(state),
       boss: !!options.boss,
       exclusive: !!options.exclusive,
+      kind: options.kind || "",
+      form: options.form || null,
       parts,
       pool: shuffleAway(chars, state.rng, forbiddenJoins(parts)),
       totalMs: options.totalMs,
@@ -517,38 +632,88 @@
     return puzzle;
   }
 
+  function faceCap(solid) {
+    if (solid === "d4") return 4;
+    if (solid === "d8") return 8;
+    if (solid === "d12") return 12;
+    if (solid === "d20") return 20;
+    return 6;
+  }
+
+  function clockMs(ms, rush) {
+    if (!rush) return ms;
+    return Math.max(4000, ms - 3000);
+  }
+
+  function createFromKind(state, kindName, options) {
+    const kind = KINDS[kindName];
+    let entries = drawKindEntries(state, kindName);
+    if (!entries.length) entries = [drawNormal(state)];
+    const wanted = kind.ranges.length;
+    let total = options.ms || kind.ms;
+    if (entries.length < wanted && entries.length >= 2) total = RULES.bossMs[entries.length] || kind.ms;
+    if (entries.length < 2 && !options.boss) total = RULES.normalMs;
+    const boss = entries.length >= 2 ? !!options.boss || !!kind.boss : !!options.boss;
+    const form = kind.solid ? { solid: kind.solid, dice: kind.dice || 1, mix: !!kind.mix } : null;
+    if (form) {
+      const letters = entries.reduce((sum, entry) => sum + entry.chars.length, 0);
+      const cap = faceCap(form.solid);
+      while (letters > cap * form.dice && form.dice < 4) form.dice += 1;
+    }
+    return makePuzzle(state, entries, {
+      boss,
+      exclusive: !!options.exclusive && (boss || entries.length >= 2),
+      totalMs: clockMs(total, options.rush),
+      kind: kindName,
+      form,
+    });
+  }
+
+  function pickKind(state, band) {
+    const kinds = band.kinds.filter((kind) => KINDS[kind]);
+    const weights = kindWeights(kinds, band.t);
+    let total = 0;
+    for (const kind of kinds) total += weights[kind];
+    let roll = state.rng() * total;
+    for (const kind of kinds) {
+      roll -= weights[kind];
+      if (roll < 0) return kind;
+    }
+    return kinds[kinds.length - 1];
+  }
+
   function createPuzzle(state, spec) {
     if (!spec) {
       return makePuzzle(state, [drawNormal(state)], {
         boss: false,
         exclusive: false,
         totalMs: RULES.normalMs,
+        kind: "",
+        form: null,
       });
     }
-    let size = spec.size;
-    if (state.dict.length < 2) {
-      return makePuzzle(state, [drawNormal(state)], {
-        boss: false,
-        exclusive: false,
-        totalMs: RULES.normalMs,
+    return createFromKind(state, spec.kind, spec);
+  }
+
+  function createFromBand(state, band) {
+    if (!band) return createPuzzle(state, null);
+    if (band.fixed) {
+      return createFromKind(state, band.fixed, {
+        kind: band.fixed,
+        boss: true,
+        exclusive: !!band.exclusive,
+        ms: band.ms || KINDS[band.fixed].ms,
+        rush: !!band.rush,
       });
     }
-    size = Math.min(size, state.dict.length);
-    const maxLen = spec.exclusive ? (size >= 4 ? 5 : 6) : 4;
-    let entries = drawEntries(state, size, maxLen);
-    if (entries.length < 2) {
-      return makePuzzle(state, [entries[0] || drawNormal(state)], {
-        boss: false,
-        exclusive: false,
-        totalMs: RULES.normalMs,
-      });
-    }
-    if (entries.length < size) size = entries.length;
-    const totalMs = RULES.bossMs[entries.length] || spec.ms;
-    return makePuzzle(state, entries, {
-      boss: true,
-      exclusive: spec.exclusive && entries.length >= 2,
-      totalMs,
+    const kind = pickKind(state, band);
+    const info = KINDS[kind];
+    return createFromKind(state, kind, {
+      kind,
+      boss: !!info.boss,
+      exclusive: false,
+      ms: info.ms,
+      rush: !!band.rush,
     });
   }
 
@@ -560,8 +725,8 @@
   function spawnUpcoming(state) {
     if (state.phase === "over") return "dead";
     if (!likeSimple(state.mode) && state.lives <= 0) return "dead";
-    const spec = bossSpec(state.nextNumber, state.mode, state.rng);
-    if (spec && spec.exclusive) {
+    const band = questionBand(state.mode, state.nextNumber, state.correct);
+    if (band && band.fixed && band.exclusive) {
       if (state.active.length > 0) {
         state.phase = "wait-boss";
         return "waiting";
@@ -569,7 +734,7 @@
     } else if (state.active.length >= maxSlotsFor(state)) {
       return "blocked";
     }
-    const puzzle = createPuzzle(state, spec && spec.exclusive && state.dict.length < 2 ? null : spec);
+    const puzzle = createFromBand(state, band);
     state.active.push(puzzle);
     state.nextNumber += 1;
     state.revision += 1;
@@ -587,7 +752,7 @@
 
   function spawnSimple(state) {
     if (state.phase === "over" || state.simpleRemainMs <= 0 || state.active.length > 0) return;
-    const puzzle = createPuzzle(state, bossSpec(state.nextNumber, state.mode, state.rng));
+    const puzzle = createPuzzle(state, null);
     state.active.push(puzzle);
     state.nextNumber += 1;
     state.wordElapsedMs = 0;
@@ -636,7 +801,7 @@
     }
     if (likeSimple(state.mode)) spawnSimple(state);
     else spawnUpcoming(state);
-    if (lateGame(state.mode)) state.spawnAcc = spawnIntervalMs(spawnPace(state));
+    if (lateGame(state.mode)) state.spawnAcc = nextGap(state);
     return state;
   }
 
@@ -658,7 +823,7 @@
 
   function noteSpawn(state, result) {
     if (result === "spawned" && state.phase === "playing") {
-      state.spawnAcc = spawnIntervalMs(spawnPace(state));
+      state.spawnAcc = nextGap(state);
     } else if (result === "blocked") {
       state.spawnAcc = 0;
     }
@@ -675,7 +840,7 @@
     const gained = likeSimple(state.mode) ? 1 : awardPoints(state, puzzle, part);
     state.score += gained;
     state.correct += 1;
-    const pace = spawnIntervalMs(spawnPace(state));
+    const pace = nextGap(state);
     if (state.spawnAcc > pace) state.spawnAcc = pace;
     state.combo += 1;
     if (state.combo > state.maxCombo) state.maxCombo = state.combo;
@@ -700,6 +865,10 @@
       if (likeSimple(state.mode)) state.wordElapsedMs = 0;
       releaseExclusive(state, puzzle);
       fillIfEmpty(state);
+    }
+    const band = questionBand(state.mode, state.nextNumber, state.correct);
+    if (band && band.fastGap && state.phase === "playing" && state.active.length > 0 && state.active.length < maxSlotsFor(state)) {
+      state.spawnAcc = Math.min(state.spawnAcc, 500);
     }
     state.revision += 1;
   }
@@ -840,7 +1009,7 @@
       fillIfEmpty(state);
       return;
     }
-    if (state.phase === "wait-boss" || (!lateGame(state.mode) && finishedCount(state) < 10)) return;
+    if (state.phase === "wait-boss") return;
     state.spawnAcc -= dt;
     if (state.spawnAcc > 0) return;
     noteSpawn(state, spawnUpcoming(state));
@@ -895,8 +1064,8 @@
   return {
     RULES,
     prepareDict,
-    bossSpec,
-    bossMixWeights,
+    questionBand,
+    kindWeights,
     spawnIntervalMs,
     maxSlotsFor,
     consumeChars,
