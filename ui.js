@@ -6,6 +6,7 @@
   const GENRES_KEY = "anagram.genres.v2";
   const GENRE_IDS = ["mammal", "fish", "food", "bird", "insect", "flower", "fruit", "star", "instrument", "element", "character", "pokemon", "proverb", "tumble"];
   const RANK_GENRES = ["mammal", "fish", "food", "bird", "insect", "flower", "fruit", "instrument", "element"];
+  const DEFAULT_GENRES = ["mammal", "fish", "food", "bird", "insect", "flower", "fruit", "instrument"];
   const FAMOUS_ELEMENTS = new Set([
     "アエン", "アルミニウム", "アルゴン", "イオウ", "ウラン", "エンソ", "カリウム", "カルシウム",
     "キン", "ギン", "クロム", "ケイソ", "コバルト", "サンソ", "スイギン", "スイソ", "スズ",
@@ -135,7 +136,7 @@
         if (Array.isArray(parsed)) ids = parsed.filter((id) => GENRE_IDS.indexOf(id) >= 0);
       } catch (err) { /* fall through */ }
     }
-    if (!ids || !ids.length) ids = RANK_GENRES.slice();
+    if (!ids || !ids.length) ids = DEFAULT_GENRES.slice();
     return GENRE_IDS.filter((id) => ids.indexOf(id) >= 0);
   }
   function listLengths(text) {
@@ -1665,8 +1666,8 @@
 
   muted = storageGet(MUTE_KEY) === "1";
   birdOff = storageGet(BIRD_KEY) === "0";
-  bgmVolume = readVolume(BGM_KEY, 60);
-  seVolume = readVolume(SE_VOL_KEY, 80);
+  bgmVolume = readVolume(BGM_KEY, 30);
+  seVolume = readVolume(SE_VOL_KEY, 70);
   syncVolumeControls();
   syncViewport();
   refreshTitle();
