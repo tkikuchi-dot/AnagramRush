@@ -968,15 +968,12 @@
     }
     const puzzle = state.active.find((item) => item.id === puzzleId && item.status === "live");
     if (!puzzle) return { ok: false, reason: "empty" };
+    const words = unsolvedWords(puzzle);
     state.hammersLeft -= 1;
-    state.combo = 0;
-    puzzle.status = "cleared";
-    state.active = state.active.filter((item) => item.id !== puzzle.id);
-    if (likeSimple(state.mode)) state.wordElapsedMs = 0;
-    state.revision += 1;
-    pushEvent(state, { type: "hammer", id: puzzle.id, words: unsolvedWords(puzzle) });
-    releaseExclusive(state, puzzle);
-    fillIfEmpty(state);
+    for (const part of puzzle.parts.slice()) {
+      if (!part.solved) solvePart(state, puzzle, part);
+    }
+    pushEvent(state, { type: "hammer", id: puzzle.id, words });
     return { ok: true };
   }
 

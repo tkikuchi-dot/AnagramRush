@@ -666,7 +666,7 @@ for (let seed = 1; seed <= 40; seed += 1) {
   assert.strictEqual(banked.lives, 3);
 }
 
-// The pass hammer removes one question, once per game.
+// The break hammer clears one question, once per game.
 {
   const state = fresh();
   const id = state.active[0].id;
@@ -674,17 +674,29 @@ for (let seed = 1; seed <= 40; seed += 1) {
   const answer = state.active[0].parts.map((part) => part.word);
   assert.strictEqual(G.hammer(state, id).ok, true);
   assert.deepStrictEqual(state.events.filter((ev) => ev.type === "hammer")[0].words, answer);
+  assert.ok(state.events.some((ev) => ev.type === "correct" && ev.cleared));
   assert.ok(!state.active.some((puzzle) => puzzle.id === id));
   assert.strictEqual(state.lives, lives);
-  assert.strictEqual(state.score, 0);
+  assert.strictEqual(state.correct, answer.length);
+  assert.strictEqual(state.combo, answer.length);
+  assert.ok(state.score > 0);
   assert.strictEqual(G.hammer(state, id).reason, "used");
+
+  const simple = fresh(PLAIN, "simple", 2);
+  const simpleWords = simple.active[0].parts.length;
+  assert.strictEqual(G.hammer(simple, simple.active[0].id).ok, true);
+  assert.strictEqual(simple.correct, simpleWords);
+  assert.strictEqual(simple.score, simpleWords);
 
   const ranked = fresh();
   const puzzle = spawnNumber(ranked, 10);
   assert.strictEqual(ranked.phase, "boss");
+  const bossWords = puzzle.parts.length;
   assert.strictEqual(G.hammer(ranked, puzzle.id).ok, true);
   assert.strictEqual(ranked.phase, "playing");
   assert.ok(!ranked.active.some((item) => item.id === puzzle.id));
+  assert.strictEqual(ranked.correct, bossWords);
+  assert.strictEqual(ranked.combo, bossWords);
 }
 
 // Hiragana and katakana count as the same answer.
