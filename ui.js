@@ -4,7 +4,7 @@
   const G = window.AnagramGame;
   const WORDS_KEY = "anagram.words.v1";
   const GENRES_KEY = "anagram.genres.v2";
-  const GENRE_IDS = ["mammal", "fish", "food", "bird", "insect", "flower", "fruit", "star", "instrument", "element", "character", "pokemon", "proverb"];
+  const GENRE_IDS = ["mammal", "fish", "food", "bird", "insect", "flower", "fruit", "star", "instrument", "element", "character", "pokemon", "proverb", "tumble"];
   const RANK_GENRES = ["mammal", "fish", "food", "bird", "insect", "flower", "fruit", "instrument", "element"];
   const FAMOUS_ELEMENTS = new Set([
     "アエン", "アルミニウム", "アルゴン", "イオウ", "ウラン", "エンソ", "カリウム", "カルシウム",
@@ -45,6 +45,7 @@
     character: "キャラクター",
     pokemon: "ポケモン",
     proverb: "ことわざ",
+    tumble: "タンブル",
   };
   const RANK_RANGE = [3, 9];
   const $ = (id) => document.getElementById(id);

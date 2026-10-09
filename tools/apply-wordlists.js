@@ -117,7 +117,7 @@ module.exports = {
 `;
 fs.writeFileSync(path.join(root, "famous-words.js"), famous);
 
-let more = `/* 追加ジャンル。鳥、昆虫、花、果物、楽器、元素はランキングにも出る。星座とキャラクターは選んだときだけ。 */
+let more = `/* 追加ジャンル。鳥、昆虫、花、果物、楽器、元素はランキングにも出る。星座とキャラクターは選んだときだけ。タンブルは tumble.js。 */
 (function (root) {
   const genres = root.ANAGRAM_GENRES || (root.ANAGRAM_GENRES = {});
 `;
