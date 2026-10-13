@@ -450,6 +450,7 @@
   .dice.spin-a { animation-name: dice-spin-a; }
   .dice.spin-b { animation-name: dice-spin-b; }
   .dice.spin-c { animation-name: dice-spin-c; }
+  .dice.poly.solid-d4.spin-c { animation-name: dice-spin-c-d4; }
   .dice.spin-d { animation-name: dice-spin-d; }
   .dice.spin-e { animation-name: dice-spin-e; }
   .dice span {
@@ -476,7 +477,7 @@
   .dice.cube span:nth-child(5) { transform: rotateX(90deg) translateZ(calc(var(--die) / 2)); }
   .dice.cube span:nth-child(6) { transform: rotateX(-90deg) translateZ(calc(var(--die) / 2)); }
   .dice.poly { --radius: 0.28; --fw: 0.62; }
-  .dice.poly.solid-d4 { --radius: 0.16; --fw: 0.9; }
+  .dice.poly.solid-d4 { --radius: 0.183712; --fw: 0.9; }
   .dice.poly.solid-d8 { --radius: 0.24; --fw: 0.62; }
   .dice.poly.solid-d12 { --radius: 0.46; --fw: 0.5; --fh: 0.48; }
   .dice.poly.solid-d20 { --radius: 0.28; --fw: 0.4; }
@@ -490,6 +491,11 @@
     clip-path: polygon(50% 0, 100% 100%, 0 100%);
     padding-top: 16%;
   }
+  .dice.poly.solid-d4 span {
+    height: calc(var(--die) * var(--fw) * 0.8660254);
+    top: calc(50% - var(--die) * var(--fw) * 0.8660254 * 0.6666667);
+    transform-origin: 50% 66.6667%;
+  }
   .dice.poly.solid-d12 span {
     height: calc(var(--die) * var(--fh));
     top: calc(50% - var(--die) * var(--fh) / 2);
@@ -497,10 +503,10 @@
     clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%);
     padding-top: 8%;
   }
-  .dice.poly.solid-d4 span:nth-child(1) { transform: rotateY(135deg) rotateX(-35.26deg) rotateZ(-120deg) translateZ(calc(var(--die) * var(--radius))); }
-.dice.poly.solid-d4 span:nth-child(2) { transform: rotateY(45deg) rotateX(35.26deg) rotateZ(180deg) translateZ(calc(var(--die) * var(--radius))); }
-.dice.poly.solid-d4 span:nth-child(3) { transform: rotateY(-45deg) rotateX(-35.26deg) rotateZ(120deg) translateZ(calc(var(--die) * var(--radius))); }
-.dice.poly.solid-d4 span:nth-child(4) { transform: rotateY(-135deg) rotateX(35.26deg) rotateZ(-60deg) translateZ(calc(var(--die) * var(--radius))); }
+  .dice.poly.solid-d4 span:nth-child(1) { transform: rotateY(135deg) rotateX(-35.2644deg) rotateZ(-120deg) translateZ(calc(var(--die) * var(--radius))); }
+  .dice.poly.solid-d4 span:nth-child(2) { transform: rotateY(45deg) rotateX(35.2644deg) rotateZ(180deg) translateZ(calc(var(--die) * var(--radius))); }
+  .dice.poly.solid-d4 span:nth-child(3) { transform: rotateY(-45deg) rotateX(-35.2644deg) rotateZ(120deg) translateZ(calc(var(--die) * var(--radius))); }
+  .dice.poly.solid-d4 span:nth-child(4) { transform: rotateY(-135deg) rotateX(35.2644deg) rotateZ(-60deg) translateZ(calc(var(--die) * var(--radius))); }
 .dice.poly.solid-d8 span:nth-child(1) { transform: rotateY(45deg) rotateX(-35.26deg) rotateZ(60deg) translateZ(calc(var(--die) * var(--radius))); }
 .dice.poly.solid-d8 span:nth-child(2) { transform: rotateY(135deg) rotateX(-35.26deg) rotateZ(-60deg) translateZ(calc(var(--die) * var(--radius))); }
 .dice.poly.solid-d8 span:nth-child(3) { transform: rotateY(45deg) rotateX(35.26deg) rotateZ(120deg) translateZ(calc(var(--die) * var(--radius))); }
@@ -561,6 +567,10 @@
   @keyframes dice-spin-c {
     0% { transform: rotate3d(1, 1, 0.4, 0deg); }
     100% { transform: rotate3d(1, 1, 0.4, 360deg); }
+  }
+  @keyframes dice-spin-c-d4 {
+    0% { transform: rotate3d(1, -0.45, 0.2, 0deg); }
+    100% { transform: rotate3d(1, -0.45, 0.2, 360deg); }
   }
   @keyframes dice-spin-d {
     0% { transform: rotateX(-16deg) rotateY(0deg) rotateZ(12deg); }
