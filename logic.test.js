@@ -1003,4 +1003,21 @@ for (let seed = 1; seed <= 40; seed += 1) {
   assert.ok(closed.active[0].parts[0].chars.length <= 6);
 }
 
-console.log("ok", 34);
+// Tumble stretches each clock by 1.5 and opens four hint letters together.
+{
+  const words = ["タンブルウィード", "アナグラムラッシュ", "ナゾマミレクロス"].map((text) => ({ text, genre: "tumble" }));
+  const state = G.createGame(words, "life", 3, { tumble: true });
+  assert.strictEqual(state.tumble, true);
+  assert.strictEqual(state.active[0].totalMs, 22500);
+  const part = state.active[0].parts[0];
+  assert.strictEqual(part.shown, 0);
+  G.tick(state, 7499);
+  assert.strictEqual(part.shown, 0);
+  G.tick(state, 1);
+  assert.strictEqual(part.shown, 4);
+  const simple = G.createGame(words, "simple", 3, { tumble: true });
+  assert.strictEqual(simple.simpleRemainMs, 180000);
+  assert.strictEqual(simple.active[0].totalMs, 22500);
+}
+
+console.log("ok", 35);

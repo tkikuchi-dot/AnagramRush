@@ -81,6 +81,8 @@
   let ending = false;
   let countToken = 0;
   let composing = false;
+  let compositionBefore = "";
+  let compositionAfter = "";
   let sentAt = 0;
   let composedAt = 0;
   let muted = false;
@@ -138,6 +140,10 @@
       } catch (err) { /* fall through */ }
     }
     if (!ids || !ids.length) ids = DEFAULT_GENRES.slice();
+    if (ids.indexOf("tumble") >= 0 && ids.some((id) => id !== "tumble")) {
+      ids = ids.filter((id) => id !== "tumble");
+      storageSet(GENRES_KEY, JSON.stringify(GENRE_IDS.filter((id) => ids.indexOf(id) >= 0)));
+    }
     return GENRE_IDS.filter((id) => ids.indexOf(id) >= 0);
   }
   function listLengths(text) {
@@ -1282,7 +1288,8 @@
     $("hud-sub").textContent = likeSimple() ? "パス1" : "Q1";
     $("clock").hidden = !likeSimple();
     $("hearts").hidden = likeSimple();
-    $("clock").textContent = "120.0";
+    const tumblePlay = tumbleOnly() && mode !== "rank" && mode !== "life1" && mode !== "dicerank" && mode !== "simplerank";
+    $("clock").textContent = (tumblePlay ? 180 : 120).toFixed(1);
     hammerDrag = null;
     placeHammerHome();
     $("hammer").hidden = true;
@@ -1305,8 +1312,10 @@
     if (token !== countToken) return;
     $("countdown").hidden = true;
     $("answer").value = "";
+    const tumblePlay = tumbleOnly() && mode !== "rank" && mode !== "life1" && mode !== "dicerank" && mode !== "simplerank";
     state = G.createGame(playItems(mode === "rank", mode), mode, Date.now() % 1000000000, {
-      openLength: tumbleOnly() && mode !== "rank" && mode !== "life1" && mode !== "dicerank" && mode !== "simplerank",
+      openLength: tumblePlay,
+      tumble: tumblePlay,
     });
     if (!state.dict.length) {
       state = null;
@@ -1548,7 +1557,14 @@
     if (!button) return;
     const id = button.dataset.genre;
     const current = selectedGenres();
-    const next = current.indexOf(id) >= 0 ? current.filter((item) => item !== id) : current.concat(id);
+    let next;
+    if (id === "tumble") {
+      next = current.length === 1 && current[0] === "tumble" ? [] : ["tumble"];
+    } else if (current.indexOf(id) >= 0) {
+      next = current.filter((item) => item !== id);
+    } else {
+      next = current.filter((item) => item !== "tumble").concat(id);
+    }
     if (!next.length) {
       toast("ジャンルは、ひとつ以上選びます");
       return;
@@ -1683,11 +1699,27 @@
     }
     onAnswer();
   });
-  $("answer").addEventListener("compositionstart", () => { composing = true; });
+  $("answer").addEventListener("compositionstart", () => {
+    composing = true;
+    const field = $("answer");
+    const value = field.value || "";
+    const start = field.selectionStart == null ? value.length : field.selectionStart;
+    const end = field.selectionEnd == null ? start : field.selectionEnd;
+    compositionBefore = value.slice(0, start);
+    compositionAfter = value.slice(end);
+  });
   $("answer").addEventListener("compositionend", (event) => {
     composing = false;
-    const text = (event.data || $("answer").value || "").trim();
-    if (text && $("answer").value !== text) $("answer").value = text;
+    const committed = String(event.data || "");
+    const field = $("answer");
+    const current = field.value || "";
+    const merged = compositionBefore + committed + compositionAfter;
+    const untouched = compositionBefore + compositionAfter;
+    if (committed && current !== merged && (current === untouched || current === committed)) {
+      field.value = merged;
+      const caret = (compositionBefore + committed).length;
+      field.setSelectionRange(caret, caret);
+    }
     composedAt = performance.now();
     watchAnswer();
   });

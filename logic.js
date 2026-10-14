@@ -699,9 +699,10 @@
     return { solid: "d20", dice: Math.min(8, Math.max(1, Math.ceil(count / cap))), mix: !!mix };
   }
 
-  function clockMs(ms, rush) {
-    if (!rush) return ms;
-    return Math.max(4000, ms - 3000);
+  function pacedMs(state, ms, rush) {
+    let next = state && state.tumble ? Math.round(ms * 1.5) : ms;
+    if (rush) next = Math.max(4000, next - 3000);
+    return next;
   }
 
   function createFromKind(state, kindName, options) {
@@ -725,7 +726,7 @@
     return makePuzzle(state, entries, {
       boss,
       exclusive: !!options.exclusive && (boss || entries.length >= 2),
-      totalMs: clockMs(total, options.rush),
+      totalMs: pacedMs(state, total, options.rush),
       kind: kindName,
       form,
     });
@@ -749,7 +750,7 @@
       return makePuzzle(state, [drawNormal(state)], {
         boss: false,
         exclusive: false,
-        totalMs: RULES.normalMs,
+        totalMs: pacedMs(state, RULES.normalMs, false),
         kind: "",
         form: null,
       });
@@ -773,7 +774,7 @@
       return makePuzzle(state, [tenth], {
         boss: true,
         exclusive: true,
-        totalMs: KINDS.long.ms,
+        totalMs: pacedMs(state, KINDS.long.ms, false),
         kind: "long",
         form: null,
       });
@@ -839,7 +840,7 @@
       ? makePuzzle(state, [tenth], {
         boss: false,
         exclusive: false,
-        totalMs: RULES.normalMs,
+        totalMs: pacedMs(state, RULES.normalMs, false),
         kind: "",
         form: null,
       })
@@ -862,6 +863,7 @@
       skipped: prepared.skipped,
       reserved: prepared.reserved,
       openLength: !!opts.openLength,
+      tumble: !!opts.tumble,
       rng: mulberry32(seed == null ? Math.floor(Math.random() * 1000000000) : seed),
       phase: "playing",
       active: [],
@@ -877,7 +879,7 @@
       passesLeft: 1,
       hammersLeft: 1,
       healsUsed: 0,
-      simpleRemainMs: RULES.simpleMs,
+      simpleRemainMs: opts.tumble ? Math.round(RULES.simpleMs * 1.5) : RULES.simpleMs,
       wordElapsedMs: 0,
       elapsedMs: 0,
       bag: [],
@@ -1036,7 +1038,10 @@
     if (!total) return;
     const remain = puzzle.remainMs;
     let count = 0;
-    if (remain * 3 <= total) count = 2;
+    if (state.tumble) {
+      if (remain * 3 <= total * 2) count = 4;
+      else return;
+    } else if (remain * 3 <= total) count = 2;
     else if (remain * 3 <= total * 2) count = 1;
     else return;
     let changed = false;
