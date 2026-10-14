@@ -82,6 +82,7 @@
   let countToken = 0;
   let composing = false;
   let sentAt = 0;
+  let composedAt = 0;
   let muted = false;
   let birdOff = false;
   let rankOffer = null;
@@ -1196,6 +1197,7 @@
       G.tick(state, Math.min(250, gap));
     }
     pump();
+    if (!composing) watchAnswer();
     if (state.phase === "over" && !ending) {
       ending = true;
       cancelAnimationFrame(raf);
@@ -1365,18 +1367,42 @@
     beat();
   }
 
+  function liveMatch(raw) {
+    if (!state) return false;
+    const text = G.norm(raw);
+    if (!text) return false;
+    for (const puzzle of state.active) {
+      if (puzzle.status !== "live") continue;
+      for (const part of puzzle.parts) {
+        if (!part.solved && part.match === text) return true;
+      }
+    }
+    return false;
+  }
+
+  function watchAnswer() {
+    if (composing || !state || state.phase === "over" || state.paused) return;
+    if (!liveMatch($("answer").value)) return;
+    onAnswer();
+  }
+
   function onAnswer() {
     const now = performance.now();
     if (now - sentAt < 150) return;
     if (!state || state.phase === "over" || state.paused) return;
     sentAt = now;
-    const value = $("answer").value;
-    $("answer").value = "";
+    const field = $("answer");
+    const value = field.value;
+    field.value = "";
     if (!G.norm(value)) {
+      if (now - composedAt < 400) {
+        field.focus();
+        return;
+      }
       if (likeSimple(state.mode)) G.pass(state);
       else shake($("dock"));
       pump();
-      $("answer").focus();
+      field.focus();
       return;
     }
     G.submit(state, value);
@@ -1642,23 +1668,32 @@
     pump();
     $("answer").focus();
   });
-  let answerOnEnter = false;
-  $("answer").addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    if (event.isComposing || composing || event.keyCode === 229) answerOnEnter = true;
-  });
+  let answerFromButton = false;
+  $("send").addEventListener("pointerdown", () => { answerFromButton = true; });
   $("dock").addEventListener("submit", (event) => {
     event.preventDefault();
+    const fromButton = answerFromButton;
+    answerFromButton = false;
     if (composing) return;
-    answerOnEnter = false;
+    if (!fromButton && performance.now() - composedAt < 400) return;
+    if (!fromButton) {
+      if (G.norm($("answer").value)) watchAnswer();
+      else onAnswer();
+      return;
+    }
     onAnswer();
   });
   $("answer").addEventListener("compositionstart", () => { composing = true; });
-  $("answer").addEventListener("compositionend", () => {
+  $("answer").addEventListener("compositionend", (event) => {
     composing = false;
-    if (!answerOnEnter) return;
-    answerOnEnter = false;
-    onAnswer();
+    const text = (event.data || $("answer").value || "").trim();
+    if (text && $("answer").value !== text) $("answer").value = text;
+    composedAt = performance.now();
+    watchAnswer();
+  });
+  $("answer").addEventListener("input", () => {
+    if (composing) return;
+    watchAnswer();
   });
   $("screen-play").addEventListener("pointerdown", (event) => {
     if (event.target.closest("button, input, textarea, a")) return;
